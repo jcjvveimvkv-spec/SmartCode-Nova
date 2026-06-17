@@ -17,8 +17,8 @@ export default function Footer() {
             <h4 className="text-white font-bold mb-4">Quick Links</h4>
             <ul className="space-y-2 text-gray-400">
               <li><Link href="#features" className="hover:text-white transition">Features</Link></li>
-              <li><Link href="#bots" className="hover:text-white transition">Bots</Link></li>
-              <li><Link href="#pricing" className="hover:text-white transition">Pricing</Link></li>
+              <li><Link href="#plans" className="hover:text-white transition">Investment Plans</Link></li>
+              <li><Link href="#testimonials" className="hover:text-white transition">Testimonials</Link></li>
             </ul>
           </div>
           <div>
@@ -26,13 +26,13 @@ export default function Footer() {
             <ul className="space-y-2 text-gray-400">
               <li><Link href="#" className="hover:text-white transition">Privacy Policy</Link></li>
               <li><Link href="#" className="hover:text-white transition">Terms of Service</Link></li>
-              <li><Link href="#" className="hover:text-white transition">Disclaimer</Link></li>
+              <li><Link href="#" className="hover:text-white transition">Risk Disclaimer</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-white font-bold mb-4">Contact</h4>
             <ul className="space-y-2 text-gray-400">
-              <li>Email: info@smartcodenova.com</li>
+              <li>Email: info@smartcodenova.online</li>
               <li>Telegram: @SmartCodeNova</li>
               <li>Support: 24/7 Live Chat</li>
             </ul>
