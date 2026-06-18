@@ -63,7 +63,7 @@ export default function LivePayouts() {
                   <div className="w-3 h-3 rounded-full bg-green-400"></div>
                   <span className="text-white font-medium">User{payout.user}</span>
                   <span className="text-gray-400">withdrew</span>
-                  <span className="text-yellow-400 font-bold">€{payout.amount.toLocaleString()}</span>
+                  <span className="text-yellow-400 font-bold">{payout.amount.toLocaleString()} USDT</span>
                 </div>
                 <span className="text-gray-400 text-sm">{payout.time}</span>
               </motion.div>

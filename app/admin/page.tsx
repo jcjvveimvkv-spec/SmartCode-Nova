@@ -4,10 +4,10 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { 
   Users, Bot, Wallet, TrendingUp, Calendar, 
-  PlusCircle, Trash2, XCircle, RefreshCw
+  PlusCircle, Trash2, CheckCircle, XCircle, RefreshCw
 } from 'lucide-react';
 
-// !! CHANGE THIS TO YOUR ADMIN EMAIL !!
+// !! CHANGE THIS TO YOUR EMAIL !!
 const ADMIN_EMAIL = 'admin@smartcodenova.com'; 
 
 export default function AdminPanel() {
@@ -60,46 +60,25 @@ export default function AdminPanel() {
   }, [supabase, router]);
 
   async function fetchAllData() {
-    // 1. Fetch Users from user_balances (using your exact column names)
-    console.log('🔄 Fetching users...');
-    const { data: usersData, error: usersError } = await supabase
+    // Fetch Users
+    const { data: usersData } = await supabase
       .from('user_balances')
       .select('*, user:user_id(*)');
+    setUsers(usersData || []);
 
-    if (usersError) {
-      console.error('❌ User Fetch Error:', usersError);
-    } else {
-      console.log('✅ Users Data Found:', usersData);
-      setUsers(usersData || []);
-    }
-
-    // 2. Fetch Active Bots
-    console.log('🔄 Fetching bots...');
-    const { data: botsData, error: botsError } = await supabase
+    // Fetch Active Bots
+    const { data: botsData } = await supabase
       .from('active_bots')
       .select('*, user:user_id(*)');
-    
-    if (botsError) {
-      console.error('❌ Bot Fetch Error:', botsError);
-    } else {
-      console.log('✅ Bots Data Found:', botsData);
-      setBots(botsData || []);
-    }
+    setBots(botsData || []);
 
-    // 3. Fetch Recent Trade Logs
-    console.log('🔄 Fetching trades...');
-    const { data: tradesData, error: tradesError } = await supabase
+    // Fetch Recent Trade Logs
+    const { data: tradesData } = await supabase
       .from('bot_trade_logs')
       .select('*, user:user_id(*)')
       .order('executed_at', { ascending: false })
       .limit(20);
-      
-    if (tradesError) {
-      console.error('❌ Trades Fetch Error:', tradesError);
-    } else {
-      console.log('✅ Trades Data Found:', tradesData);
-      setTrades(tradesData || []);
-    }
+    setTrades(tradesData || []);
   }
 
   // 2. Handle Creating a Manual Bot

@@ -3,7 +3,12 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 export default function AIBotAnimation() {
+  const [mounted, setMounted] = useState(false);
   const [glowColor, setGlowColor] = useState('#ff0000');
+
+  useEffect(() => {
+    setMounted(true); // Only run on the browser
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -11,6 +16,15 @@ export default function AIBotAnimation() {
     }, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  // Show a static placeholder during Server-Side Rendering
+  if (!mounted) {
+    return (
+      <div className="relative w-64 h-64 mx-auto flex items-center justify-center">
+        <div className="w-48 h-48 rounded-full bg-gradient-to-br from-red-500/20 to-blue-500/20 border border-blue-500/30 animate-pulse"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-64 h-64 mx-auto">
@@ -45,7 +59,7 @@ export default function AIBotAnimation() {
         <div className="text-8xl animate-pulse">🤖</div>
       </motion.div>
 
-      {/* Floating particles */}
+      {/* Floating particles (Only runs on Client) */}
       {[...Array(12)].map((_, i) => (
         <motion.div
           key={i}

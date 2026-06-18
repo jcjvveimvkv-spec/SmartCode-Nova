@@ -16,6 +16,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* TRADINGVIEW TICKER TAPE SCRIPT */}
+        <script 
+          type="module" 
+          src="https://widgets.tradingview-widget.com/w/en/tv-ticker-tape.js"
+        ></script>
+      </head>
       <body className={inter.className}>{children}</body>
     </html>
   );

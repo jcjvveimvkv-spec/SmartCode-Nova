@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import Link from 'next/link'; // <--- ADDED THIS IMPORT
+import Link from 'next/link'; 
 import { 
   Wallet, TrendingUp, Bot, Activity, 
   Wallet2, ExternalLink, PlusCircle, Gift,
@@ -268,7 +268,7 @@ export default function DashboardOverview() {
               <span className="text-[#8e96a3] text-lg">↗</span>
             </button>
 
-            {/* Buy New Bot - LINKED TO BOT STORE */}
+            {/* Buy New Bot - UPDATED LINK */}
             <Link href="/dashboard/buy-bot">
               <button className="flex justify-between items-center w-full p-4 rounded-xl border transition-all duration-200 bg-[#0b0e14] border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer">
                 <div className="flex items-center gap-3">
