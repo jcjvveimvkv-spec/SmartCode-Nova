@@ -7,7 +7,7 @@ const plans = [
     name: 'NOVA-1 BOT',
     min: '35',
     max: '500',
-    return: '3%',
+    return: '5%',
     duration: '2 Days',
     bonus: 0,
     color: 'from-red-600 to-red-800'
@@ -16,7 +16,7 @@ const plans = [
     name: 'NOVA-2 BOT',
     min: '120',
     max: '1500',
-    return: '5%',
+    return: '10%',
     duration: '4 Days',
     bonus: 0,
     color: 'from-blue-600 to-blue-800'
@@ -25,7 +25,7 @@ const plans = [
     name: 'NOVA-3 BOT',
     min: '500',
     max: '5000',
-    return: '10%',
+    return: '15%',
     duration: '7 Days',
     bonus: 100,
     color: 'from-red-600 to-red-800'
@@ -34,7 +34,7 @@ const plans = [
     name: 'NOVA-4 BOT',
     min: '2000',
     max: '20000',
-    return: '20%',
+    return: '30%',
     duration: '2 Weeks',
     bonus: 200,
     color: 'from-blue-600 to-blue-800'
