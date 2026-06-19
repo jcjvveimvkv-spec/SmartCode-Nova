@@ -13,7 +13,7 @@ export default function TradePage() {
   );
   const router = useRouter();
 
-  const [deployedBots, setDeployedBots] = useState<any[]>([]);
+  const [deployedBot, setDeployedBot] = useState<any>(null);
   const [tradeLogs, setTradeLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
@@ -25,14 +25,15 @@ export default function TradePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
 
-      // 1. Fetch ALL deployed bots (not just one)
+      // 1. Fetch the deployed bot
       const { data: botData } = await supabase
         .from('active_bots')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_deployed', true);
+        .eq('is_deployed', true)
+        .maybeSingle();
 
-      setDeployedBots(botData || []);
+      setDeployedBot(botData || null);
 
       // 2. Fetch user balance
       const { data: bal } = await supabase.from('user_balances').select('funding_balance').eq('user_id', user.id).single();
@@ -57,9 +58,11 @@ export default function TradePage() {
 
     if (logs && logs.length > 0) {
       setTradeLogs(logs);
+      // DYNAMIC PAIR SWAP: Set the chart to the most recent trade's pair
       const lastTrade = logs[0];
-      let tradingViewSymbol = 'BITSTAMP:BTCUSD';
+      let tradingViewSymbol = 'BITSTAMP:BTCUSD'; // Default fallback
       
+      // Map custom pairs to TradingView symbols
       if (lastTrade.pair === 'BTC/USDT') tradingViewSymbol = 'BITSTAMP:BTCUSD';
       else if (lastTrade.pair === 'ETH/USDT') tradingViewSymbol = 'BITSTAMP:ETHUSD';
       else if (lastTrade.pair === 'LTC/USDT') tradingViewSymbol = 'BITSTAMP:LTCUSD';
@@ -81,7 +84,7 @@ export default function TradePage() {
 
   if (loading) return <div className="flex justify-center items-center h-[400px] text-white">Loading...</div>;
 
-  if (deployedBots.length === 0) {
+  if (!deployedBot) {
     return (
       <div className="p-6 bg-[#0b0e14] text-white flex flex-col items-center justify-center h-[600px] gap-4">
         <ShieldAlert size={64} className="text-[#8e96a3]" />
@@ -108,36 +111,54 @@ export default function TradePage() {
         </div>
       </div>
 
-      {/* Multi-Bot Status Cards */}
-      <div className="space-y-4">
-        <h2 className="text-sm text-[#8e96a3] uppercase tracking-wider">Active Bots ({deployedBots.length})</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {deployedBots.map((bot) => (
-            <motion.div 
-              key={bot.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#141a24] border border-white/5 rounded-xl p-4 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Bot className="text-blue-400 w-5 h-5" />
-                </div>
-                <div>
-                  <p className="font-bold text-white">{bot.bot_name}</p>
-                  <p className="text-xs text-[#8e96a3]">Invested: {bot.invested_usdt} USDT</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-green-400 text-sm font-bold">+{bot.profit_percent}%</p>
-                <p className="text-[10px] text-[#8e96a3]">Active</p>
-              </div>
-            </motion.div>
-          ))}
+      {/* Bot Status Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[#141a24] border border-white/5 rounded-2xl p-6 grid grid-cols-1 md:grid-cols-4 gap-4"
+      >
+        <div className="flex items-center gap-4 border-r border-white/5 pr-4 last:border-0">
+          <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+            <Bot className="text-blue-400 w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-[#8e96a3] uppercase tracking-wider">Bot Name</p>
+            <p className="text-lg font-bold">{deployedBot.bot_name}</p>
+          </div>
         </div>
-      </div>
+        <div className="flex items-center gap-4 border-r border-white/5 pr-4 last:border-0">
+          <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
+            <Wallet className="text-green-400 w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-[#8e96a3] uppercase tracking-wider">Invested</p>
+            <p className="text-lg font-bold text-green-400">{deployedBot.invested_usdt} USDT</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 border-r border-white/5 pr-4 last:border-0">
+          <div className="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center border border-yellow-500/20">
+            <TrendingUp className="text-yellow-400 w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-[#8e96a3] uppercase tracking-wider">Current Value</p>
+            <p className="text-lg font-bold text-yellow-400">{deployedBot.current_value_usdt} USDT</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
+            <CheckCircle2 className="text-green-400 w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-xs text-[#8e96a3] uppercase tracking-wider">Status</p>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              <span className="text-green-400 font-medium text-sm">Active (Cron)</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
-      {/* Chart Section (1 Minute Default) */}
+      {/* Chart Section (1 Minute Default) - DYNAMICALLY SWAPS */}
       <div className="bg-[#141a24] border border-white/5 rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-white/5 flex items-center justify-between bg-[#0b0e14]/50">
           <div className="flex items-center gap-2">
@@ -149,6 +170,7 @@ export default function TradePage() {
           </span>
         </div>
         <div className="h-[500px] w-full p-2">
+          {/* Pass the dynamic symbol to the chart widget */}
           <TradeChartWidget symbol={currentChartPair} />
         </div>
       </div>

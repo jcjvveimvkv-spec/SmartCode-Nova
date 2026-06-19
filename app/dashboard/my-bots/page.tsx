@@ -6,17 +6,18 @@ import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import { 
   Bot, TrendingUp, TrendingDown, DollarSign, 
-  Calendar, ArrowRight, AlertCircle, CheckCircle2,
-  RefreshCw, Wallet, Copy, CheckCircle
+  Calendar, AlertCircle, CheckCircle2,
+  RefreshCw, Wallet, Copy, CheckCircle 
 } from 'lucide-react';
+import { sendTelegram, sendEmail } from '@/app/lib/notifications';
 
-// Helper to get avatar URL based on bot name
-const getBotAvatar = (name: string) => {
+// Helper to get image based on bot name
+const getBotImage = (name: string) => {
   const map: {[key: string]: string} = {
-    'NOVA-1 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot-avatars/nova-1.png',
-    'NOVA-2 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot-avatars/nova-2.png',
-    'NOVA-3 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot-avatars/nova-3.png',
-    'NOVA-4 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot-avatars/nova-4.png',
+    'NOVA-1 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot1.jpeg',
+    'NOVA-2 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot2.jpeg',
+    'NOVA-3 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot3.jpeg',
+    'NOVA-4 BOT': 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot4.jpeg',
   };
   return map[name] || '/placeholder.png';
 };
@@ -32,6 +33,7 @@ export default function MyBotsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [deployingId, setDeployingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchBots() {
@@ -62,22 +64,79 @@ export default function MyBotsPage() {
     setTimeout(() => setCopiedKey(null), 3000);
   };
 
-  const handleDeployBot = async (botId: string) => {
-    if (!confirm('Deploy this bot to the trading terminal?')) return;
-    const { error } = await supabase.from('active_bots').update({ is_deployed: true }).eq('id', botId);
-    if (!error) {
+  const handleDeployBot = async (botId: string, botName: string, invested: number, licenseKey: string) => {
+    if (!confirm(`Deploy ${botName} to the trading terminal?`)) return;
+    
+    setDeployingId(botId);
+    setError(null);
+
+    try {
+      // 1. Update database
+      const { error: updateError } = await supabase
+        .from('active_bots')
+        .update({ is_deployed: true })
+        .eq('id', botId);
+
+      if (updateError) throw updateError;
+
+      // 2. Fetch user details for notifications
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // FIX FOR TYPESCRIPT WARNING: Guard against null user
+      if (!user) {
+        router.push('/auth/login');
+        return;
+      }
+
+      const { data: userData } = await supabase
+        .from('user_balances')
+        .select('telegram_username, email')
+        .eq('user_id', user.id)
+        .single();
+
+      // 3. Send Telegram Notification
+      if (userData?.telegram_username) {
+        const tgMsg = `🚀 <b>BOT DEPLOYED</b>\n\n🤖 Bot: ${botName}\n💰 Investment: ${invested} USDT\n🔗 License Key: ${licenseKey}\n🟢 Status: Live Trading`;
+        await sendTelegram(userData.telegram_username, tgMsg);
+      }
+
+      // 4. Send Email Notification
+      if (userData?.email) {
+        const emailHtml = `
+          <div style="background-color: #0b0e14; padding: 40px; font-family: Arial, sans-serif; color: #f3f4f6;">
+            <div style="max-width: 600px; margin: 0 auto; background: #141a24; border-radius: 16px; padding: 30px; border: 1px solid rgba(255,255,255,0.06);">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <img src="https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/logo/logo.png" style="height: 40px;" />
+              </div>
+              <h2 style="color: #6366f1; text-align: center;">🚀 Bot Deployed Successfully!</h2>
+              <p style="color: #8e96a3; text-align: center;">Your AI bot is now live and ready to trade.</p>
+              <div style="background: #0b0e14; border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.05); margin: 20px 0;">
+                <p><strong>Bot:</strong> ${botName}</p>
+                <p><strong>Investment:</strong> ${invested} USDT</p>
+                <p><strong>License Key:</strong> ${licenseKey}</p>
+                <p><strong>Status:</strong> <span style="color: #10b981;">Active</span></p>
+              </div>
+              <p style="color: #8e96a3; font-size: 12px; text-align: center;">SmartCodeNova Support</p>
+            </div>
+          </div>
+        `;
+        await sendEmail(userData.email, '🚀 Bot Deployed Successfully', emailHtml);
+      }
+
+      // 5. Update local state
       setBots(prev => prev.map(b => b.id === botId ? { ...b, is_deployed: true } : b));
-    } else {
-      alert('Error deploying bot: ' + error.message);
+      setDeployingId(null);
+      alert('Bot deployed successfully! Check your Telegram/Email for confirmation.');
+    } catch (err: any) {
+      setError('Deployment failed: ' + err.message);
+      setDeployingId(null);
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-[400px] w-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366f1]"></div></div>;
-  }
+  if (loading) return <div className="flex items-center justify-center h-[400px] w-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366f1]"></div></div>;
 
   return (
-    <div className="space-y-6 w-full max-w-full bg-[#0b0e14]">
+    <div className="space-y-8 w-full max-w-full bg-[#0b0e14]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 w-full">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">My Active Bots</h1>
@@ -104,73 +163,84 @@ export default function MyBotsPage() {
       )}
 
       {!error && bots.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-          {bots.map((bot, index) => {
-            const profitPercent = bot.profit_percent || 0;
-            const isProfitable = profitPercent >= 0;
-            const daysActive = Math.floor((new Date().getTime() - new Date(bot.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+            {bots.map((bot, index) => {
+              const profitPercent = bot.profit_percent || 0;
+              const isProfitable = profitPercent >= 0;
+              const daysActive = Math.floor((new Date().getTime() - new Date(bot.created_at).getTime()) / (1000 * 60 * 60 * 24));
 
-            return (
-              <motion.div key={bot.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-[#141a24] border border-white/5 rounded-2xl p-6 w-full hover:border-[#6366f1]/30 transition-all duration-300">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <img src={getBotAvatar(bot.bot_name)} alt={bot.bot_name} className="w-12 h-12 rounded-full object-cover border border-white/10" />
-                    <div>
-                      <h3 className="text-lg font-bold text-white">{bot.bot_name}</h3>
-                      <div className="flex items-center gap-2 text-xs text-[#8e96a3]">
-                        <Calendar size={12} /> {daysActive} days active
+              return (
+                <motion.div key={bot.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-[#141a24] border border-white/5 rounded-2xl p-6 w-full hover:border-[#6366f1]/30 transition-all duration-300">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <img src={getBotImage(bot.bot_name)} alt={bot.bot_name} className="w-14 h-14 rounded-xl object-cover border border-white/10" />
+                      <div>
+                        <h3 className="text-lg font-bold text-white">{bot.bot_name}</h3>
+                        <div className="flex items-center gap-2 text-xs text-[#8e96a3]">
+                          <Calendar size={12} /> {daysActive} days active
+                        </div>
                       </div>
                     </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${bot.status === 'Active' ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20' : 'bg-[#8e96a3]/10 text-[#8e96a3] border border-[#8e96a3]/20'}`}>
+                        {bot.status === 'Active' && <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>}
+                        {bot.status}
+                      </span>
+                      {bot.is_deployed && (
+                        <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">✅ Deployed</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${bot.status === 'Active' ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20' : 'bg-[#8e96a3]/10 text-[#8e96a3] border border-[#8e96a3]/20'}`}>
-                      {bot.status === 'Active' && <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>}
-                      {bot.status}
-                    </span>
-                    {bot.is_deployed && (
-                      <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">✅ Deployed</span>
-                    )}
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div className="bg-[#0b0e14] p-3 rounded-xl border border-white/5">
-                    <span className="text-[10px] uppercase text-[#8e96a3] tracking-wider block mb-1">Invested</span>
-                    <span className="text-white font-bold flex items-center gap-1"><Wallet size={14} className="text-[#8e96a3]" /> {bot.invested_usdt} USDT</span>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="bg-[#0b0e14] p-3 rounded-xl border border-white/5">
+                      <span className="text-[10px] uppercase text-[#8e96a3] tracking-wider block mb-1">Invested</span>
+                      <span className="text-white font-bold flex items-center gap-1"><Wallet size={14} className="text-[#8e96a3]" /> {bot.invested_usdt} USDT</span>
+                    </div>
+                    <div className="bg-[#0b0e14] p-3 rounded-xl border border-white/5">
+                      <span className="text-[10px] uppercase text-[#8e96a3] tracking-wider block mb-1">Current Value</span>
+                      <span className="text-white font-bold flex items-center gap-1"><DollarSign size={14} className="text-[#8e96a3]" /> {bot.current_value_usdt} USDT</span>
+                    </div>
+                    <div className="bg-[#0b0e14] p-3 rounded-xl border border-white/5">
+                      <span className="text-[10px] uppercase text-[#8e96a3] tracking-wider block mb-1">Profit</span>
+                      <span className={`font-bold flex items-center gap-1 ${isProfitable ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
+                        {isProfitable ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        {profitPercent > 0 ? '+' : ''}{profitPercent}%
+                      </span>
+                    </div>
                   </div>
-                  <div className="bg-[#0b0e14] p-3 rounded-xl border border-white/5">
-                    <span className="text-[10px] uppercase text-[#8e96a3] tracking-wider block mb-1">Current Value</span>
-                    <span className="text-white font-bold flex items-center gap-1"><DollarSign size={14} className="text-[#8e96a3]" /> {bot.current_value_usdt} USDT</span>
-                  </div>
-                  <div className="bg-[#0b0e14] p-3 rounded-xl border border-white/5">
-                    <span className="text-[10px] uppercase text-[#8e96a3] tracking-wider block mb-1">Profit</span>
-                    <span className={`font-bold flex items-center gap-1 ${isProfitable ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-                      {isProfitable ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                      {profitPercent > 0 ? '+' : ''}{profitPercent}%
-                    </span>
-                  </div>
-                </div>
 
-                {/* License Key Section */}
-                <div className="flex items-center gap-2 bg-[#0b0e14] p-3 rounded-xl border border-white/5 mb-4">
-                  <span className="text-xs text-[#8e96a3] uppercase tracking-wider">License Key:</span>
-                  <code className="flex-1 text-xs font-mono text-green-400 truncate">{bot.license_key}</code>
-                  <button onClick={() => handleCopyKey(bot.license_key)} className="p-1 hover:bg-white/5 rounded text-[#8e96a3] hover:text-white transition">
-                    {copiedKey === bot.license_key ? <CheckCircle size={14} className="text-green-400" /> : <Copy size={14} />}
-                  </button>
-                </div>
+                  <div className="flex items-center gap-2 bg-[#0b0e14] p-3 rounded-xl border border-white/5 mb-4">
+                    <span className="text-xs text-[#8e96a3] uppercase tracking-wider">License Key:</span>
+                    <code className="flex-1 text-xs font-mono text-green-400 truncate">{bot.license_key}</code>
+                    <button onClick={() => handleCopyKey(bot.license_key)} className="p-1 hover:bg-white/5 rounded text-[#8e96a3] hover:text-white transition">
+                      {copiedKey === bot.license_key ? <CheckCircle size={14} className="text-green-400" /> : <Copy size={14} />}
+                    </button>
+                  </div>
 
-                <div className="flex gap-3">
-                  <button onClick={() => handleDeployBot(bot.id)} disabled={bot.is_deployed} className={`flex-1 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 ${bot.is_deployed ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 cursor-default' : 'bg-[#6366f1] text-white hover:bg-[#6366f1]/90'}`}>
-                    {bot.is_deployed ? '✅ Deployed' : '🚀 Deploy Bot'}
-                  </button>
-                  <button className="flex-1 py-2 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-sm text-[#ef4444] hover:bg-[#ef4444]/20 transition flex items-center justify-center gap-2">
-                    Stop Bot
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => handleDeployBot(bot.id, bot.bot_name, bot.invested_usdt, bot.license_key)}
+                      disabled={bot.is_deployed || deployingId === bot.id}
+                      className={`flex-1 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2 ${bot.is_deployed ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20 cursor-default' : deployingId === bot.id ? 'bg-[#6366f1]/50 text-white cursor-wait' : 'bg-[#6366f1] text-white hover:bg-[#6366f1]/90'}`}
+                    >
+                      {deployingId === bot.id ? (
+                        <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                      ) : bot.is_deployed ? (
+                        '✅ Deployed'
+                      ) : (
+                        '🚀 Deploy Bot'
+                      )}
+                    </button>
+                    <button className="flex-1 py-2 bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-lg text-sm text-[#ef4444] hover:bg-[#ef4444]/20 transition flex items-center justify-center gap-2">
+                      Stop Bot
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

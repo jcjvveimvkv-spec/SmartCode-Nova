@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import { 
   Wallet, TrendingUp, Bot, Activity, 
   Wallet2, ExternalLink, PlusCircle, Gift,
@@ -66,11 +66,15 @@ export default function DashboardOverview() {
         return;
       }
 
-      const { data: balanceData } = await supabase
+      const { data: balanceData, error } = await supabase
         .from('user_balances')
         .select('funding_balance, total_profit_usdt, bonus_usdt')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching balance:', error);
+      }
 
       const { count: botCount } = await supabase
         .from('active_bots')
@@ -96,6 +100,8 @@ export default function DashboardOverview() {
           activeBots: botCount || 0,
           totalTrades: tradeCount || 0
         });
+      } else {
+        console.log('No balance data found for this user yet.');
       }
       setLoading(false);
     }
@@ -250,25 +256,29 @@ export default function DashboardOverview() {
           <h2 className="text-lg font-bold text-white mb-5">Quick Actions</h2>
           <div className="flex-1 space-y-3 w-full">
             
-            {/* Deposit */}
-            <button className="flex justify-between items-center w-full p-4 rounded-xl border transition-all duration-200 bg-[#0b0e14] border-white/5 hover:bg-white/5 hover:border-white/10">
-              <div className="flex items-center gap-3">
-                <Wallet2 className="w-5 h-5 text-[#8e96a3]" />
-                <span className="text-sm font-medium text-white">Deposit USDT</span>
-              </div>
-              <span className="text-[#8e96a3] text-lg">↗</span>
-            </button>
+            {/* DEPOSIT BUTTON - NOW LINKED TO /dashboard/wallet */}
+            <Link href="/dashboard/wallet">
+              <button className="flex justify-between items-center w-full p-4 rounded-xl border transition-all duration-200 bg-[#0b0e14] border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <Wallet2 className="w-5 h-5 text-[#8e96a3]" />
+                  <span className="text-sm font-medium text-white">Deposit USDT</span>
+                </div>
+                <span className="text-[#8e96a3] text-lg hover:translate-x-1 hover:-translate-y-1 transition-transform">↗</span>
+              </button>
+            </Link>
             
-            {/* Withdraw */}
-            <button className="flex justify-between items-center w-full p-4 rounded-xl border transition-all duration-200 bg-[#0b0e14] border-white/5 hover:bg-white/5 hover:border-white/10">
-              <div className="flex items-center gap-3">
-                <ExternalLink className="w-5 h-5 text-[#8e96a3]" />
-                <span className="text-sm font-medium text-white">Withdraw USDT</span>
-              </div>
-              <span className="text-[#8e96a3] text-lg">↗</span>
-            </button>
+            {/* WITHDRAW BUTTON - NOW LINKED TO /dashboard/withdrawal */}
+            <Link href="/dashboard/withdrawal">
+              <button className="flex justify-between items-center w-full p-4 rounded-xl border transition-all duration-200 bg-[#0b0e14] border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <ExternalLink className="w-5 h-5 text-[#8e96a3]" />
+                  <span className="text-sm font-medium text-white">Withdraw USDT</span>
+                </div>
+                <span className="text-[#8e96a3] text-lg hover:translate-x-1 hover:-translate-y-1 transition-transform">↗</span>
+              </button>
+            </Link>
 
-            {/* Buy New Bot - UPDATED LINK */}
+            {/* BUY NEW BOT - LINKED TO /dashboard/buy-bot */}
             <Link href="/dashboard/buy-bot">
               <button className="flex justify-between items-center w-full p-4 rounded-xl border transition-all duration-200 bg-[#0b0e14] border-white/5 hover:bg-white/5 hover:border-white/10 cursor-pointer">
                 <div className="flex items-center gap-3">
