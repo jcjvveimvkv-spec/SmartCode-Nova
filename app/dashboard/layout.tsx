@@ -4,8 +4,11 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardSidebar from './DashboardSidebar';
-import { Bell, Search, User, LogOut, Settings as SettingsIcon, Wallet, X } from 'lucide-react';
+import { Bell, Search, User, LogOut, Settings as SettingsIcon, Wallet, X, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// The two admin accounts authorized to see the switch button
+const ADMIN_EMAILS = ['smartcodenova@gmail.com', 'admin@smartcodenova.com'];
 
 export default function DashboardLayout({
   children,
@@ -16,6 +19,7 @@ export default function DashboardLayout({
   const router = useRouter();
 
   const [userData, setUserData] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -25,6 +29,11 @@ export default function DashboardLayout({
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
+
+      // Check if the logged-in user is an admin
+      if (user.email && ADMIN_EMAILS.includes(user.email)) {
+        setIsAdmin(true);
+      }
 
       const { data: profile } = await supabase
         .from('user_balances')
@@ -105,6 +114,16 @@ export default function DashboardLayout({
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Admin Switch Button (Only visible for admin emails) */}
+            {isAdmin && (
+              <Link href="/admin">
+                <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#6366f1]/10 border border-[#6366f1]/30 text-[#6366f1] hover:bg-[#6366f1]/20 transition">
+                  <Shield size={18} />
+                  <span className="text-xs font-medium hidden sm:inline">Admin</span>
+                </button>
+              </Link>
+            )}
 
             {/* Profile Dropdown */}
             <div className="relative border-l border-white/10 pl-6">

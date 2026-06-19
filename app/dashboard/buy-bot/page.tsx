@@ -7,12 +7,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wallet, TrendingUp, Calendar, Gift, 
   AlertCircle, CheckCircle, Zap, Award, Crown,
-  Download, X, History, ArrowRight
+  Download, X, ChevronLeft, ChevronRight, History, ArrowRight
 } from 'lucide-react';
 
 // Helper: Generate a unique 16-character License Key
-function generateLicenseKey() {
-  return 'SCN-' + Math.random().toString(36).substring(2, 6).toUpperCase() + 
+function generateLicenseKey(prefix: string = 'SCN') {
+  return prefix + '-' + Math.random().toString(36).substring(2, 6).toUpperCase() + 
          '-' + Math.random().toString(36).substring(2, 6).toUpperCase() + 
          '-' + Math.random().toString(36).substring(2, 6).toUpperCase() + 
          '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -23,45 +23,6 @@ function generateReceiptNumber() {
   return '#' + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-const botPlans = [
-  { 
-    id: 'nova-1', 
-    name: 'NOVA-1 BOT', 
-    min: 35, max: 500, 
-    return: 5, duration: '2 DAYS', 
-    bonus: 0, 
-    icon: Zap,
-    image: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot1.jpeg'
-  },
-  { 
-    id: 'nova-2', 
-    name: 'NOVA-2 BOT', 
-    min: 120, max: 1500, 
-    return: 10, duration: '4 DAYS', 
-    bonus: 0, 
-    icon: TrendingUp,
-    image: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot2.jpeg'
-  },
-  { 
-    id: 'nova-3', 
-    name: 'NOVA-3 BOT', 
-    min: 500, max: 5000, 
-    return: 15, duration: '7 DAYS', 
-    bonus: 100, 
-    icon: Award,
-    image: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot3.jpeg'
-  },
-  { 
-    id: 'nova-4', 
-    name: 'NOVA-4 BOT', 
-    min: 2000, max: 20000, 
-    return: 30, duration: '2 WEEKS', 
-    bonus: 200, 
-    icon: Crown,
-    image: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/bot/Nova%20Bot4.jpeg'
-  }
-];
-
 export default function BotStorePage() {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,51 +30,76 @@ export default function BotStorePage() {
   );
   const router = useRouter();
   
-  const [loading, setLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fundingBalance, setFundingBalance] = useState(0);
   const [sliderValues, setSliderValues] = useState<{[key: string]: number}>({});
   const [purchaseHistory, setPurchaseHistory] = useState<any[]>([]);
+  const [bots, setBots] = useState<any[]>([]);
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const botsPerPage = 10;
+  const totalPages = Math.ceil(bots.length / botsPerPage);
+  const currentBots = bots.slice(
+    (currentPage - 1) * botsPerPage,
+    currentPage * botsPerPage
+  );
 
   // Receipt Modal State
   const [receipt, setReceipt] = useState<any>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   useEffect(() => {
-    async function fetchUserData() {
+    async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
 
-      // Fetch Balance
+      // Fetch User Balance
       const { data: bal } = await supabase.from('user_balances').select('funding_balance').eq('user_id', user.id).single();
       if (bal) setFundingBalance(bal.funding_balance || 0);
 
-      // Fetch ALL Purchase History (We will limit to 5 in the JSX)
+      // Fetch ALL Active Bots
+      const { data: botData, error: botError } = await supabase
+        .from('admin_bots')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (botError) {
+        setError('Failed to load bots: ' + botError.message);
+      } else {
+        setBots(botData || []);
+      }
+
+      // Fetch Purchase History (Last 5)
       const { data: history } = await supabase
         .from('active_bots')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
+        .order('created_at', { ascending: false })
+        .limit(5);
+
       setPurchaseHistory(history || []);
+      setLoading(false);
     }
-    fetchUserData();
+    fetchData();
   }, [supabase, router]);
 
-  const getSliderValue = (bot: typeof botPlans[0]) => sliderValues[bot.id] || bot.min;
+  const getSliderValue = (bot: any) => sliderValues[bot.id] || bot.min_deposit;
 
   const handleSliderChange = (botId: string, value: number) => {
     setSliderValues(prev => ({ ...prev, [botId]: value }));
   };
 
-  const handleBuyBot = async (bot: typeof botPlans[0]) => {
+  const handleBuyBot = async (bot: any) => {
     const investmentAmount = getSliderValue(bot);
-    if (investmentAmount < bot.min || investmentAmount > bot.max) {
-      setError(`Investment must be between ${bot.min} and ${bot.max} USDT.`);
+    if (investmentAmount < bot.min_deposit || investmentAmount > bot.max_deposit) {
+      setError(`Investment must be between ${bot.min_deposit} and ${bot.max_deposit} USDT.`);
       return;
     }
 
-    setLoading(bot.id);
+    setLoading(true);
     setError(null);
 
     try {
@@ -122,16 +108,26 @@ export default function BotStorePage() {
 
       if (fundingBalance < investmentAmount) {
         setError(`Insufficient funds. Need ${investmentAmount} USDT.`);
-        setLoading(null); return;
+        setLoading(false); return;
       }
 
-      // 1. Deduct funds
+      // 1. Generate Receipt Data
+      const licenseKey = generateLicenseKey(bot.license_key_prefix || 'SCN');
+      const receiptNumber = generateReceiptNumber();
+      const receiptData = {
+        receiptNumber,
+        product: bot.name,
+        investmentAmount,
+        licenseKey,
+        botImage: bot.image_url,
+        date: new Date().toLocaleString(),
+        status: 'Active'
+      };
+
+      // 2. Deduct funds
       await supabase.from('user_balances').update({ funding_balance: fundingBalance - investmentAmount }).eq('user_id', user.id);
 
-      // 2. Generate License Key
-      const licenseKey = generateLicenseKey();
-      
-      // 3. Insert bot into database
+      // 3. Insert bot with receipt_data
       const { data: newBot, error: insertError } = await supabase
         .from('active_bots')
         .insert({
@@ -139,45 +135,36 @@ export default function BotStorePage() {
           bot_name: bot.name,
           invested_usdt: investmentAmount,
           current_value_usdt: investmentAmount,
-          profit_percent: bot.return,
+          profit_percent: bot.profit_percent,
           status: 'Active',
           license_key: licenseKey,
-          is_deployed: false
+          is_deployed: false,
+          trading_pairs: bot.trading_pairs,
+          receipt_data: receiptData // SAVING RECEIPT DATA TO DB
         })
         .select()
         .single();
 
       if (insertError) throw insertError;
 
-      // 4. Apply Bonus if applicable
-      if (bot.bonus > 0) {
+      // 4. Apply Bonus
+      if (bot.bonus_usdt > 0) {
         const { data: currentBonus } = await supabase.from('user_balances').select('bonus_usdt').eq('user_id', user.id).single();
-        await supabase.from('user_balances').update({ bonus_usdt: (currentBonus?.bonus_usdt || 0) + bot.bonus }).eq('user_id', user.id);
+        await supabase.from('user_balances').update({ bonus_usdt: (currentBonus?.bonus_usdt || 0) + bot.bonus_usdt }).eq('user_id', user.id);
       }
 
-      // 5. Generate Receipt Data
-      const receiptData = {
-        receiptNumber: generateReceiptNumber(),
-        product: bot.name,
-        investmentAmount: investmentAmount,
-        licenseKey: licenseKey,
-        botImage: bot.image,
-        date: new Date().toLocaleString(),
-        status: 'Active'
-      };
-
-      // 6. Update local state
+      // 5. Update local state
       setFundingBalance(fundingBalance - investmentAmount);
-      setPurchaseHistory(prev => [newBot, ...prev]); // Prepend the real database row
+      setPurchaseHistory(prev => [newBot, ...prev]);
 
-      // 7. Show the Modal
+      // 6. Show the Modal
       setReceipt(receiptData);
       setIsReceiptOpen(true);
 
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setLoading(null);
+      setLoading(false);
     }
   };
 
@@ -190,12 +177,22 @@ export default function BotStorePage() {
     setReceipt(null);
   };
 
+  // --- RE-OPEN RECEIPT FROM HISTORY ---
+  const handleViewReceipt = (bot: any) => {
+    if (bot.receipt_data && typeof bot.receipt_data === 'object') {
+      setReceipt(bot.receipt_data);
+      setIsReceiptOpen(true);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center items-center h-[400px] text-white">Loading bot store...</div>;
+
   return (
     <div className="space-y-8 w-full max-w-full bg-[#0b0e14] text-white p-6">
       <div className="flex justify-between items-center border-b border-white/5 pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">SmartCode Nova Investment Plans</h1>
-          <p className="text-[#8e96a3] text-sm">Slide to invest, deploy your AI bot instantly.</p>
+          <h1 className="text-2xl font-bold tracking-tight">SmartCode Nova Bot Store</h1>
+          <p className="text-[#8e96a3] text-sm">Browse and invest in our AI-powered trading bots.</p>
         </div>
         <div className="px-4 py-2 bg-[#141a24] rounded-xl border border-white/5 text-sm flex items-center gap-2">
           <Wallet size={16} className="text-blue-400" /> Balance: <span className="text-white font-bold">{fundingBalance.toFixed(2)} USDT</span>
@@ -204,31 +201,32 @@ export default function BotStorePage() {
 
       {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-center gap-3"><AlertCircle size={20} /> {error}</div>}
 
+      {/* Bot Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {botPlans.map((bot) => {
+        {currentBots.map((bot) => {
           const investment = getSliderValue(bot);
-          const expectedReturn = (investment * (bot.return / 100)).toFixed(2);
+          const expectedReturn = (investment * (bot.profit_percent / 100)).toFixed(2);
 
           return (
             <motion.div key={bot.id} className="bg-[#141a24] border border-white/5 rounded-2xl overflow-hidden shadow-sm relative">
               
               <div className="bg-gradient-to-r from-[#1a1a4e] to-[#0b0e14] p-6 flex items-center gap-4 border-b border-white/5">
-                <img src={bot.image} alt={bot.name} className="w-20 h-20 rounded-xl object-cover border-2 border-blue-500/30" />
+                <img src={bot.image_url} alt={bot.name} className="w-20 h-20 rounded-xl object-cover border-2 border-blue-500/30" />
                 <div>
                   <h2 className="text-2xl font-bold text-white">{bot.name}</h2>
-                  <p className="text-sm text-[#8e96a3]">{bot.return}% Return • {bot.duration}</p>
+                  <p className="text-sm text-[#8e96a3]">{bot.profit_percent}% Return • {bot.duration}</p>
                 </div>
-                {bot.bonus > 0 && (
+                {bot.bonus_usdt > 0 && (
                   <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-[#141a24]">
-                    BONUS +{bot.bonus} USDT
+                    BONUS +{bot.bonus_usdt} USDT
                   </div>
                 )}
               </div>
 
               <div className="grid grid-cols-3 gap-2 p-6 bg-white/5 border-b border-white/5">
-                <div className="text-center"><p className="text-[10px] uppercase text-[#8e96a3] tracking-wider">Min</p><p className="font-bold text-lg">{bot.min} <span className="text-xs font-normal text-[#8e96a3]">USDT</span></p></div>
-                <div className="text-center"><p className="text-[10px] uppercase text-[#8e96a3] tracking-wider">Max</p><p className="font-bold text-lg">{bot.max} <span className="text-xs font-normal text-[#8e96a3]">USDT</span></p></div>
-                <div className="text-center"><p className="text-[10px] uppercase text-[#8e96a3] tracking-wider">Return</p><p className="font-bold text-lg text-green-400">{bot.return}%</p></div>
+                <div className="text-center"><p className="text-[10px] uppercase text-[#8e96a3] tracking-wider">Min</p><p className="font-bold text-lg">{bot.min_deposit} <span className="text-xs font-normal text-[#8e96a3]">USDT</span></p></div>
+                <div className="text-center"><p className="text-[10px] uppercase text-[#8e96a3] tracking-wider">Max</p><p className="font-bold text-lg">{bot.max_deposit} <span className="text-xs font-normal text-[#8e96a3]">USDT</span></p></div>
+                <div className="text-center"><p className="text-[10px] uppercase text-[#8e96a3] tracking-wider">Return</p><p className="font-bold text-lg text-green-400">{bot.profit_percent}%</p></div>
               </div>
 
               <div className="p-6 bg-[#0b0e14]">
@@ -239,30 +237,53 @@ export default function BotStorePage() {
                 
                 <input 
                   type="range" 
-                  min={bot.min} max={bot.max} step={1}
+                  min={bot.min_deposit} max={bot.max_deposit} step={1}
                   value={investment}
                   onChange={(e) => handleSliderChange(bot.id, Number(e.target.value))}
                   className="w-full h-2 bg-[#141a24] rounded-lg appearance-none cursor-pointer accent-blue-600"
                 />
                 
                 <div className="flex justify-between text-xs text-[#8e96a3] mt-2">
-                  <span>{bot.min} USDT</span>
+                  <span>{bot.min_deposit} USDT</span>
                   <span className="text-green-400">Expected Profit: +{expectedReturn} USDT</span>
-                  <span>{bot.max} USDT</span>
+                  <span>{bot.max_deposit} USDT</span>
                 </div>
 
                 <button 
                   onClick={() => handleBuyBot(bot)} 
-                  disabled={loading === bot.id}
+                  disabled={loading}
                   className="w-full mt-6 py-3 bg-blue-600 rounded-xl font-bold text-white hover:bg-blue-700 transition disabled:opacity-50"
                 >
-                  {loading === bot.id ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mx-auto"></span> : `Activate Bot (${investment} USDT)`}
+                  {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mx-auto"></span> : `Activate Bot (${investment} USDT)`}
                 </button>
               </div>
             </motion.div>
           );
         })}
       </div>
+
+      {/* Pagination Controls */}
+      {bots.length > botsPerPage && (
+        <div className="flex justify-center items-center gap-4 mt-8 pt-6 border-t border-white/5">
+          <button 
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-[#141a24] border border-white/5 rounded-lg text-sm hover:bg-white/5 transition disabled:opacity-50 flex items-center gap-2"
+          >
+            <ChevronLeft size={16} /> Previous
+          </button>
+          <span className="text-sm text-[#8e96a3]">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button 
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-[#141a24] border border-white/5 rounded-lg text-sm hover:bg-white/5 transition disabled:opacity-50 flex items-center gap-2"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
 
       {/* --- RECEIPT MODAL --- */}
       <AnimatePresence>
@@ -377,12 +398,8 @@ export default function BotStorePage() {
             </button>
           </Link>
         </div>
-        
-        {/* Show the FIRST 5 items from purchaseHistory */}
         {purchaseHistory.length === 0 ? (
-          <div className="bg-[#141a24] border border-white/5 rounded-xl p-8 text-center text-[#8e96a3]">
-            You haven't made any purchases yet.
-          </div>
+          <div className="bg-[#141a24] border border-white/5 rounded-xl p-8 text-center text-[#8e96a3]">You haven't made any purchases yet.</div>
         ) : (
           <div className="bg-[#141a24] border border-white/5 rounded-xl overflow-hidden">
             <table className="w-full text-sm text-left">
@@ -392,11 +409,12 @@ export default function BotStorePage() {
                   <th className="px-6 py-3">Investment</th>
                   <th className="px-6 py-3">License Key</th>
                   <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">Receipt</th>
                 </tr>
               </thead>
               <tbody>
-                {purchaseHistory.slice(0, 5).map((item, idx) => {
-                  const image = botPlans.find(b => b.name === item.bot_name)?.image || '';
+                {purchaseHistory.map((item, idx) => {
+                  const image = bots.find(b => b.name === item.bot_name)?.image_url || '';
                   return (
                     <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
                       <td className="px-6 py-3 flex items-center gap-2">
@@ -406,6 +424,14 @@ export default function BotStorePage() {
                       <td className="px-6 py-3 font-bold text-green-400">{item.invested_usdt} USDT</td>
                       <td className="px-6 py-3 font-mono text-[#f59e0b] text-xs">{item.license_key}</td>
                       <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(item.created_at).toLocaleDateString()}</td>
+                      <td className="px-6 py-3">
+                        <button 
+                          onClick={() => handleViewReceipt(item)}
+                          className="px-3 py-1 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-lg text-[#6366f1] text-xs hover:bg-[#6366f1]/20 transition"
+                        >
+                          View Receipt
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
