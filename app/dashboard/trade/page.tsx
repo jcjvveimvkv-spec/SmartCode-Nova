@@ -25,7 +25,6 @@ export default function TradePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
 
-      // 1. Fetch ALL deployed bots (not just one)
       const { data: botData } = await supabase
         .from('active_bots')
         .select('*')
@@ -34,11 +33,9 @@ export default function TradePage() {
 
       setDeployedBots(botData || []);
 
-      // 2. Fetch user balance
       const { data: bal } = await supabase.from('user_balances').select('funding_balance').eq('user_id', user.id).single();
       if (bal) setBalance(bal.funding_balance || 0);
 
-      // 3. Fetch the trade logs
       await fetchTradeLogs();
 
       setLoading(false);
@@ -47,7 +44,6 @@ export default function TradePage() {
     fetchData();
   }, [supabase, router]);
 
-  // Function to fetch trade logs
   const fetchTradeLogs = async () => {
     const { data: logs } = await supabase
       .from('bot_trade_logs')
@@ -73,9 +69,9 @@ export default function TradePage() {
     setLastUpdated(new Date());
   };
 
-  // Poll for new trades every 10 seconds
+  // Poll for new trades every 5 seconds
   useEffect(() => {
-    const interval = setInterval(fetchTradeLogs, 10000);
+    const interval = setInterval(fetchTradeLogs, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -102,7 +98,7 @@ export default function TradePage() {
         <h1 className="text-2xl font-bold">Autonomous Trading Dashboard</h1>
         <div className="flex items-center gap-4 text-sm bg-[#141a24] px-4 py-2 rounded-xl border border-white/5">
           <RefreshCw size={16} className="text-[#6366f1] animate-spin" />
-          <span className="text-[#8e96a3] text-xs">Updating every 10s</span>
+          <span className="text-[#8e96a3] text-xs">Updating every 5s</span>
           <div className="w-px h-4 bg-white/10"></div>
           <Wallet size={16} className="text-[#6366f1]" /> Balance: <span className="font-bold text-green-400">{balance.toFixed(2)} USDT</span>
         </div>
@@ -137,7 +133,7 @@ export default function TradePage() {
         </div>
       </div>
 
-      {/* Chart Section (1 Minute Default) */}
+      {/* Chart Section */}
       <div className="bg-[#141a24] border border-white/5 rounded-2xl overflow-hidden">
         <div className="p-4 border-b border-white/5 flex items-center justify-between bg-[#0b0e14]/50">
           <div className="flex items-center gap-2">
@@ -180,7 +176,7 @@ export default function TradePage() {
               ) : (
                 tradeLogs.map((trade, idx) => (
                   <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
-                    <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(trade.executed_at).toLocaleString()}</td>
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(trade.executed_at).toLocaleTimeString()}</td>
                     <td className="px-6 py-3 font-mono">{trade.pair}</td>
                     <td className="px-6 py-3">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${trade.action === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>

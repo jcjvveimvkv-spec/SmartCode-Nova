@@ -2,12 +2,7 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import { Receipt, Printer, RefreshCw, PlusCircle, Eye, EyeOff } from 'lucide-react';
-
-const Select = dynamic(() => import('react-select'), { ssr: false });
-
-const GROQ_API_KEY = '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';
+import { Receipt, Printer, PlusCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function AdminReceiptsPage() {
   const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -25,7 +20,6 @@ export default function AdminReceiptsPage() {
 
   const [privacyMode, setPrivacyMode] = useState(false);
   const [receiptHtml, setReceiptHtml] = useState('');
-  const [loadingAuto, setLoadingAuto] = useState(false);
 
   const maskLong = (data: string) => {
     if (!data || data.length < 12) return data;
@@ -125,57 +119,6 @@ export default function AdminReceiptsPage() {
     generateReceipt();
   };
 
-  const handleAutoGenerate = async () => {
-    setLoadingAuto(true);
-    try {
-      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'mixtral-8x7b-32768',
-          messages: [
-            { role: 'system', content: 'Return ONLY a valid JSON object with realistic transaction data.' },
-            { role: 'user', content: `Generate a realistic crypto transaction. "type": "deposit" or "withdrawal", "amount": random 100-5000, "network": "TRC20" or "BEP20", "txid": random 0x string, "wallet": random crypto address. Return as JSON.` }
-          ],
-          temperature: 0.9,
-          max_tokens: 300
-        })
-      });
-
-      const groqData = await groqRes.json();
-      const rawContent = groqData.choices?.[0]?.message?.content || '{}';
-      const cleanJson = rawContent.replace(/```json|```/g, '').trim();
-      const aiData = JSON.parse(cleanJson);
-
-      setForm({
-        type: aiData.type || 'deposit',
-        amount: aiData.amount?.toString() || '1000',
-        network: aiData.network || 'TRC20',
-        txid: aiData.txid || '0x' + Math.random().toString(36).substring(2, 12),
-        wallet: aiData.wallet || 'TG6Ean2c7rRSp1tHHPd78R4dZzxo67tyyd',
-        status: 'Completed',
-        timestamp: new Date().toISOString().slice(0, 16)
-      });
-
-    } catch (err) {
-      console.error('Groq Error:', err);
-      setForm({
-        type: Math.random() > 0.5 ? 'deposit' : 'withdrawal',
-        amount: (Math.floor(Math.random() * 5000) + 100).toString(),
-        network: Math.random() > 0.5 ? 'TRC20' : 'BEP20',
-        txid: '0x' + Math.random().toString(36).substring(2, 12),
-        wallet: 'TG6Ean2c7rRSp1tHHPd78R4dZzxo67tyyd',
-        status: 'Completed',
-        timestamp: new Date().toISOString().slice(0, 16)
-      });
-    } finally {
-      setLoadingAuto(false);
-    }
-  };
-
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -196,9 +139,6 @@ export default function AdminReceiptsPage() {
           <button onClick={() => setPrivacyMode(!privacyMode)} className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition ${privacyMode ? 'bg-[#6366f1]/20 border-[#6366f1]/40 text-[#6366f1]' : 'bg-[#141a24] border-white/5 text-[#8e96a3]'}`}>
             {privacyMode ? <EyeOff size={16} /> : <Eye size={16} />}
             <span className="text-xs font-medium">{privacyMode ? 'Privacy ON' : 'Privacy OFF'}</span>
-          </button>
-          <button onClick={handleAutoGenerate} disabled={loadingAuto} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] rounded-lg text-sm font-medium hover:opacity-90 transition disabled:opacity-50">
-            {loadingAuto ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span> : <><RefreshCw size={16} /> Auto-Generate</>}
           </button>
         </div>
       </div>

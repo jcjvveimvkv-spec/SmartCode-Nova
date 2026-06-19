@@ -323,10 +323,11 @@ export default function Signup() {
       }
       setLoading(false);
     } else if (data.user) {
+      // ✅ ONLY CHANGE: Replaced 'balance_usdt' with 'funding_balance'
       const { error: dbError } = await supabase.from('user_balances').insert([
         { 
           user_id: data.user.id, 
-          balance_usdt: 0, 
+          funding_balance: 0,  // <--- CHANGED THIS LINE
           total_profit_usdt: 0,
           full_name: formData.fullName,
           state: formData.state,
