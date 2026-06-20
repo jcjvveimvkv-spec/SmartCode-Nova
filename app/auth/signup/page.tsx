@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, CheckCircle2, XCircle, Calendar } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { notifyAdminNewSignup } from '@/app/lib/notifications'; // <--- NEW IMPORT
 
 // 1. Dynamically import Select with NO SSR (This fixes the hydration error)
 const Select = dynamic(
@@ -323,11 +324,11 @@ export default function Signup() {
       }
       setLoading(false);
     } else if (data.user) {
-      // ✅ ONLY CHANGE: Replaced 'balance_usdt' with 'funding_balance'
+      // ✅ Insert into user_balances
       const { error: dbError } = await supabase.from('user_balances').insert([
         { 
           user_id: data.user.id, 
-          funding_balance: 0,  // <--- CHANGED THIS LINE
+          funding_balance: 0, 
           total_profit_usdt: 0,
           full_name: formData.fullName,
           state: formData.state,
@@ -342,6 +343,9 @@ export default function Signup() {
         setError('Profile save failed: ' + dbError.message);
         setLoading(false);
       } else {
+        // ✅ NOTIFY ADMIN ABOUT NEW SIGNUP
+        await notifyAdminNewSignup(formData.email, formData.fullName);
+        
         router.push('/dashboard');
       }
     }

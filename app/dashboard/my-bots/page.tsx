@@ -100,7 +100,7 @@ export default function MyBotsPage() {
         await sendTelegram(userData.telegram_username, tgMsg);
       }
 
-      // 4. Send Email Notification
+      // 4. Send Email Notification (Keep your existing logic)
       if (userData?.email) {
         const emailHtml = `
           <div style="background-color: #0b0e14; padding: 40px; font-family: Arial, sans-serif; color: #f3f4f6;">

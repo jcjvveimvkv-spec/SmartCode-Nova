@@ -31,7 +31,7 @@ export default function WalletPage() {
     BEP20: '0x5F8E1c4C318ef1cDAb776587535Bb55E1f92720c'
   };
 
-  // QR Codes
+  // QR Code URLs (Restored from your Supabase Storage)
   const QR_CODES = {
     TRC20: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/deposit/usdtTRC20.jpeg',
     BEP20: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/deposit/usdtBEP20.jpeg'
@@ -90,7 +90,7 @@ export default function WalletPage() {
       // 2. Send Notifications
       const userName = user.user_metadata?.full_name || user.email;
       await notifyUserDepositInitiated(user.email, userName, parseFloat(amount), network);
-      await notifyAdminNewDeposit(user.email, userName, parseFloat(amount), txid, network);
+      await notifyAdminNewDeposit(user.email, parseFloat(amount), txid, network);
 
       setSuccessMsg('Deposit submitted successfully! You will receive a confirmation email shortly.');
       setAmount(''); setTxid('');
@@ -156,7 +156,6 @@ export default function WalletPage() {
           <div className="bg-[#0b0e14] p-6 rounded-xl border border-white/5">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">TRC20 <span className="text-xs bg-[#6366f1]/20 px-2 py-1 rounded text-[#6366f1]">Network</span></h3>
-              <span className="text-sm bg-green-500/10 text-green-400 px-3 py-1 rounded-full border border-green-500/20">Recommended</span>
             </div>
             <img src={QR_CODES.TRC20} alt="TRC20 QR" className="w-40 h-40 mx-auto mb-4 rounded-lg border border-white/5" />
             <div className="bg-[#141a24] p-3 rounded-xl border border-white/5 flex items-center justify-between gap-2">
@@ -165,7 +164,6 @@ export default function WalletPage() {
                 {copied === 'TRC20' ? <CheckCircle size={16} className="text-green-400" /> : <Copy size={16} />}
               </button>
             </div>
-            <p className="text-[10px] text-[#8e96a3] mt-2 text-center">Network: TRC20 (Tron)</p>
           </div>
 
           {/* BEP20 */}
@@ -180,7 +178,6 @@ export default function WalletPage() {
                 {copied === 'BEP20' ? <CheckCircle size={16} className="text-green-400" /> : <Copy size={16} />}
               </button>
             </div>
-            <p className="text-[10px] text-[#8e96a3] mt-2 text-center">Network: BEP20 (BNB Chain)</p>
           </div>
         </div>
 
