@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { motion } from 'framer-motion';
 import { Copy, CheckCircle, Wallet, ArrowDownToLine, History, ExternalLink } from 'lucide-react';
-import { notifyUserDepositInitiated, notifyAdminNewDeposit } from '@/app/lib/notifications';
+import { notifyUserDepositProcessing, notifyAdminNewDeposit } from '@/app/lib/notifications';
 
 export default function WalletPage() {
   const supabase = createBrowserClient(
@@ -31,7 +31,7 @@ export default function WalletPage() {
     BEP20: '0x5F8E1c4C318ef1cDAb776587535Bb55E1f92720c'
   };
 
-  // QR Code URLs (Restored from your Supabase Storage)
+  // QR Code URLs
   const QR_CODES = {
     TRC20: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/deposit/usdtTRC20.jpeg',
     BEP20: 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/deposit/usdtBEP20.jpeg'
@@ -87,12 +87,16 @@ export default function WalletPage() {
       });
       if (error) throw error;
 
-      // 2. Send Notifications
+      // 2. Send Notifications to User (Processing) + Admin
       const userName = user.user_metadata?.full_name || user.email;
-      await notifyUserDepositInitiated(user.email, userName, parseFloat(amount), network);
+      
+      // This is the new function that sends the beautiful email + Telegram to the user
+      await notifyUserDepositProcessing(user.email, userName, parseFloat(amount), network, txid);
+      
+      // This sends the alert to the Admin
       await notifyAdminNewDeposit(user.email, parseFloat(amount), txid, network);
 
-      setSuccessMsg('Deposit submitted successfully! You will receive a confirmation email shortly.');
+      setSuccessMsg('Deposit submitted successfully! Check your email and Telegram for confirmation.');
       setAmount(''); setTxid('');
     } catch (err: any) {
       alert('Error submitting deposit: ' + err.message);

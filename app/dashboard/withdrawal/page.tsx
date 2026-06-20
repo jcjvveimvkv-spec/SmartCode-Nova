@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Wallet, ArrowDownToLine, Copy, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
-import { notifyAdminNewWithdrawal } from '@/app/lib/notifications';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Wallet, ArrowDownToLine, CheckCircle, AlertCircle, ExternalLink, Loader2, X } from 'lucide-react';
+import { notifyAdminNewWithdrawal, notifyUserWithdrawalRequested } from '@/app/lib/notifications';
 
 export default function WithdrawalPage() {
   const supabase = createBrowserClient(
@@ -17,7 +18,11 @@ export default function WithdrawalPage() {
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [telegramChatId, setTelegramChatId] = useState<string | null>(null);
   
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // Form State
   const [amount, setAmount] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
@@ -41,15 +46,26 @@ export default function WithdrawalPage() {
         const total = (bal.funding_balance || 0) + (bal.total_profit_usdt || 0) + (bal.bonus_usdt || 0);
         setTotalBalance(total);
       }
+      
+      // Fetch Telegram Chat ID for notifications
+      const { data: userData } = await supabase
+        .from('user_balances')
+        .select('telegram_username')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userData?.telegram_username) {
+        setTelegramChatId(userData.telegram_username);
+      }
+
       setUser(user);
       setLoading(false);
     }
     fetchUserData();
   }, [supabase, router]);
 
-  // Calculate Fee and Net Amount
   const amountNum = parseFloat(amount) || 0;
-  const fee = amountNum * 0.03; // 3% fee
+  const fee = amountNum * 0.03;
   const netAmount = amountNum - fee;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,7 +81,6 @@ export default function WithdrawalPage() {
     setSubmitting(true);
 
     try {
-      // 1. Save withdrawal request to Supabase
       const { error: dbError } = await supabase.from('withdrawal_requests').insert({
         user_id: user.id,
         amount: amountNum,
@@ -78,21 +93,33 @@ export default function WithdrawalPage() {
 
       if (dbError) throw dbError;
 
-      // 2. Send Admin Notification (Telegram + Email)
+      // Admin Notification
       await notifyAdminNewWithdrawal(
         user.email,
         user.user_metadata?.full_name || user.email,
         amountNum,
         fee,
         netAmount,
-        walletAddress,
-        network
+        walletAddress
       );
 
-      // 3. Clear form and show success
-      setSuccess('Withdrawal request submitted successfully! Admin will review and process it shortly.');
+      // User Email & Telegram Notification
+      // FIX: Convert null to undefined using || undefined
+      await notifyUserWithdrawalRequested(
+        user.email,
+        user.user_metadata?.full_name || user.email,
+        amountNum,
+        fee,
+        netAmount,
+        walletAddress,
+        network,
+        telegramChatId || undefined // <--- THE FIX IS HERE
+      );
+
+      // Clear form and open the Modal
       setAmount('');
       setWalletAddress('');
+      setIsModalOpen(true);
     } catch (err: any) {
       setError(err.message || 'Failed to submit withdrawal request.');
     } finally {
@@ -118,7 +145,6 @@ export default function WithdrawalPage() {
         </div>
       </div>
 
-      {/* Alerts */}
       {error && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-center gap-2">
           <AlertCircle size={18} /> {error}
@@ -130,10 +156,7 @@ export default function WithdrawalPage() {
         </div>
       )}
 
-      {/* Withdrawal Form */}
       <form onSubmit={handleSubmit} className="bg-[#141a24] border border-white/5 rounded-2xl p-6 space-y-6">
-        
-        {/* Amount Input */}
         <div>
           <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Amount (USDT)</label>
           <div className="relative">
@@ -162,7 +185,6 @@ export default function WithdrawalPage() {
           )}
         </div>
 
-        {/* Wallet Address */}
         <div>
           <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Wallet Address</label>
           <input 
@@ -174,7 +196,6 @@ export default function WithdrawalPage() {
           />
         </div>
 
-        {/* Network Selector */}
         <div>
           <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Network</label>
           <select 
@@ -187,7 +208,6 @@ export default function WithdrawalPage() {
           </select>
         </div>
 
-        {/* Currency (Fixed to USDT) */}
         <div>
           <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Cryptocurrency</label>
           <div className="bg-[#0b0e14] border border-white/5 rounded-lg p-3 text-white font-medium">
@@ -195,7 +215,6 @@ export default function WithdrawalPage() {
           </div>
         </div>
 
-        {/* Submit Button */}
         <button 
           type="submit"
           disabled={submitting || amountNum <= 0 || amountNum > totalBalance}
@@ -208,6 +227,58 @@ export default function WithdrawalPage() {
           )}
         </button>
       </form>
+
+      {/* --- PROCESSING MODAL --- */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setIsModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#141a24] border border-white/10 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-[#1a1a4e] to-[#0b0e14] p-6 border-b border-white/5 text-center relative">
+                <button onClick={() => setIsModalOpen(false)} className="absolute right-4 top-4 text-[#8e96a3] hover:text-white transition">
+                  <X size={24} />
+                </button>
+                <div className="w-16 h-16 bg-[#6366f1]/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-[#6366f1]/30">
+                  <Loader2 className="text-[#6366f1] w-8 h-8 animate-spin" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">Processing Withdrawal</h2>
+                <p className="text-[#8e96a3] text-sm">SmartCodeNova is processing your withdrawal request...</p>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="bg-[#0b0e14] rounded-xl border border-white/5 p-4 text-center">
+                  <p className="text-[#8e96a3] text-sm">You will receive a Telegram and Email notification once the admin approves this transaction.</p>
+                </div>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => router.push('/dashboard')}
+                    className="flex-1 py-3 bg-[#0b0e14] border border-white/5 rounded-xl font-bold text-white hover:bg-white/5 transition"
+                  >
+                    Return to Overview
+                  </button>
+                  <button 
+                    onClick={() => router.push('/dashboard/transactions')}
+                    className="flex-1 py-3 bg-[#6366f1] rounded-xl font-bold text-white hover:opacity-90 transition"
+                  >
+                    View History
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
