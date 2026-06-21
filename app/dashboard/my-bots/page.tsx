@@ -79,28 +79,23 @@ export default function MyBotsPage() {
 
       if (updateError) throw updateError;
 
-      // 2. Fetch user details for notifications
+      // 2. Fetch user details
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // FIX FOR TYPESCRIPT WARNING: Guard against null user
-      if (!user) {
-        router.push('/auth/login');
-        return;
-      }
+      if (!user) { router.push('/auth/login'); return; }
 
       const { data: userData } = await supabase
         .from('user_balances')
-        .select('telegram_username, email')
+        .select('telegram_chat_id, email')
         .eq('user_id', user.id)
         .single();
 
-      // 3. Send Telegram Notification
-      if (userData?.telegram_username) {
+      // 3. Send Telegram Notification (using chat_id)
+      if (userData?.telegram_chat_id) {
         const tgMsg = `🚀 <b>BOT DEPLOYED</b>\n\n🤖 Bot: ${botName}\n💰 Investment: ${invested} USDT\n🔗 License Key: ${licenseKey}\n🟢 Status: Live Trading`;
-        await sendTelegram(userData.telegram_username, tgMsg);
+        await sendTelegram(userData.telegram_chat_id, tgMsg);
       }
 
-      // 4. Send Email Notification (Keep your existing logic)
+      // 4. Send Email Notification (Restored)
       if (userData?.email) {
         const emailHtml = `
           <div style="background-color: #0b0e14; padding: 40px; font-family: Arial, sans-serif; color: #f3f4f6;">

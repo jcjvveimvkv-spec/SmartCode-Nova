@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Bot, LineChart, BarChart3, Wallet, History, 
-  ShieldCheck, Settings, Menu, X, ChevronLeft, ChevronRight
+  ShieldCheck, Settings, Menu, X, ChevronLeft, ChevronRight, Users
 } from 'lucide-react';
 
 const menuItems = [
@@ -16,6 +16,7 @@ const menuItems = [
   { name: 'My Wallet', icon: Wallet, href: '/dashboard/wallet' },
   { name: 'Trade History', icon: History, href: '/dashboard/transactions' },
   { name: 'Risk Controls', icon: ShieldCheck, href: '/dashboard/risk' },
+  { name: 'Community', icon: Users, href: '/dashboard/community' },
   { name: 'Settings', icon: Settings, href: '/dashboard/settings' },
 ];
 

@@ -145,58 +145,67 @@ export default function AdminApprovalsPage() {
       </div>
 
       <div className="bg-[#141a24] border border-white/5 rounded-xl overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="bg-[#0b0e14] border-b border-white/5 text-[#8e96a3]">
-            <tr>
-              <th className="px-6 py-3">User ID</th>
-              <th className="px-6 py-3">Amount</th>
-              <th className="px-6 py-3">Details</th>
-              <th className="px-6 py-3">Date</th>
-              <th className="px-6 py-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeTab === 'deposits' && (
-              deposits.length === 0 ? <tr><td colSpan={5} className="px-6 py-8 text-center text-[#8e96a3]">No pending deposits.</td></tr> :
-              deposits.map((d) => (
-                <tr key={d.id} className="border-b border-white/5 hover:bg-white/5 transition">
-                  <td className="px-6 py-3 text-[#8e96a3] text-xs">{d.user_id}</td>
-                  <td className="px-6 py-3 font-bold text-green-400">{d.amount} USDT</td>
-                  <td className="px-6 py-3 text-[#8e96a3] text-xs break-all">TXID: {d.txid}</td>
-                  <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(d.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-3 flex gap-2">
-                    <button onClick={() => handleApproveDeposit(d.id, d.user_id, d.amount)} disabled={!!actionLoading} className="flex items-center gap-1 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 hover:bg-green-500/20 transition text-xs disabled:opacity-50">
-                      {actionLoading === d.id ? <span className="animate-spin h-3 w-3 border-2 border-green-400 border-t-transparent rounded-full"></span> : <><CheckCircle size={14} /> Approve</>}
-                    </button>
-                    <button onClick={() => handleRejectDeposit(d.id)} disabled={!!actionLoading} className="flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition text-xs disabled:opacity-50">
-                      {actionLoading === d.id ? <span className="animate-spin h-3 w-3 border-2 border-red-400 border-t-transparent rounded-full"></span> : <><XCircle size={14} /> Reject</>}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
+        {/* --- FIX 1: Horizontal scroll for mobile --- */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left min-w-[800px]">
+            <thead className="bg-[#0b0e14] border-b border-white/5 text-[#8e96a3]">
+              <tr>
+                <th className="px-6 py-3">User ID</th>
+                <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Details</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeTab === 'deposits' && (
+                deposits.length === 0 ? <tr><td colSpan={5} className="px-6 py-8 text-center text-[#8e96a3]">No pending deposits.</td></tr> :
+                deposits.map((d) => (
+                  <tr key={d.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs">{d.user_id}</td>
+                    <td className="px-6 py-3 font-bold text-green-400">{d.amount} USDT</td>
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs break-all">TXID: {d.txid}</td>
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(d.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-3">
+                      {/* --- FIX 2: Stack buttons vertically on mobile --- */}
+                      <div className="flex flex-col md:flex-row gap-2">
+                        <button onClick={() => handleApproveDeposit(d.id, d.user_id, d.amount)} disabled={!!actionLoading} className="flex items-center justify-center gap-1 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 hover:bg-green-500/20 transition text-xs disabled:opacity-50 w-full md:w-auto">
+                          {actionLoading === d.id ? <span className="animate-spin h-3 w-3 border-2 border-green-400 border-t-transparent rounded-full"></span> : <><CheckCircle size={14} /> Approve</>}
+                        </button>
+                        <button onClick={() => handleRejectDeposit(d.id)} disabled={!!actionLoading} className="flex items-center justify-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition text-xs disabled:opacity-50 w-full md:w-auto">
+                          {actionLoading === d.id ? <span className="animate-spin h-3 w-3 border-2 border-red-400 border-t-transparent rounded-full"></span> : <><XCircle size={14} /> Reject</>}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
 
-            {activeTab === 'withdrawals' && (
-              withdrawals.length === 0 ? <tr><td colSpan={5} className="px-6 py-8 text-center text-[#8e96a3]">No pending withdrawals.</td></tr> :
-              withdrawals.map((w) => (
-                <tr key={w.id} className="border-b border-white/5 hover:bg-white/5 transition">
-                  <td className="px-6 py-3 text-[#8e96a3] text-xs">{w.user_id}</td>
-                  <td className="px-6 py-3 font-bold text-yellow-400">{w.amount} USDT</td>
-                  <td className="px-6 py-3 text-[#8e96a3] text-xs break-all">Wallet: {w.wallet_address}</td>
-                  <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(w.created_at).toLocaleString()}</td>
-                  <td className="px-6 py-3 flex gap-2">
-                    <button onClick={() => handleApproveWithdrawal(w.id, w.user_id, w.amount)} disabled={!!actionLoading} className="flex items-center gap-1 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 hover:bg-green-500/20 transition text-xs disabled:opacity-50">
-                      {actionLoading === w.id ? <span className="animate-spin h-3 w-3 border-2 border-green-400 border-t-transparent rounded-full"></span> : <><CheckCircle size={14} /> Approve</>}
-                    </button>
-                    <button onClick={() => handleRejectWithdrawal(w.id)} disabled={!!actionLoading} className="flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition text-xs disabled:opacity-50">
-                      {actionLoading === w.id ? <span className="animate-spin h-3 w-3 border-2 border-red-400 border-t-transparent rounded-full"></span> : <><XCircle size={14} /> Reject</>}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              {activeTab === 'withdrawals' && (
+                withdrawals.length === 0 ? <tr><td colSpan={5} className="px-6 py-8 text-center text-[#8e96a3]">No pending withdrawals.</td></tr> :
+                withdrawals.map((w) => (
+                  <tr key={w.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs">{w.user_id}</td>
+                    <td className="px-6 py-3 font-bold text-yellow-400">{w.amount} USDT</td>
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs break-all">Wallet: {w.wallet_address}</td>
+                    <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(w.created_at).toLocaleString()}</td>
+                    <td className="px-6 py-3">
+                      {/* --- FIX 2: Stack buttons vertically on mobile --- */}
+                      <div className="flex flex-col md:flex-row gap-2">
+                        <button onClick={() => handleApproveWithdrawal(w.id, w.user_id, w.amount)} disabled={!!actionLoading} className="flex items-center justify-center gap-1 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 hover:bg-green-500/20 transition text-xs disabled:opacity-50 w-full md:w-auto">
+                          {actionLoading === w.id ? <span className="animate-spin h-3 w-3 border-2 border-green-400 border-t-transparent rounded-full"></span> : <><CheckCircle size={14} /> Approve</>}
+                        </button>
+                        <button onClick={() => handleRejectWithdrawal(w.id)} disabled={!!actionLoading} className="flex items-center justify-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition text-xs disabled:opacity-50 w-full md:w-auto">
+                          {actionLoading === w.id ? <span className="animate-spin h-3 w-3 border-2 border-red-400 border-t-transparent rounded-full"></span> : <><XCircle size={14} /> Reject</>}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
