@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import Navbar from './components/Navbar';
 import Features from './components/Features';
 import BotShowcase from './components/BotShowcase';
@@ -13,11 +16,38 @@ import FloatingLogo from './components/FloatingLogo';
 import AIBotAnimation from './components/AIBotAnimation';
 
 export default function Home() {
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsLoggedIn(!!user);
+      setLoading(false);
+    }
+    checkUser();
+  }, [supabase]);
+
+  const handleGetStarted = () => {
+    if (isLoggedIn) {
+      router.push('/dashboard');
+    } else {
+      router.push('/auth/signup'); // ✅ EXACTLY matches your file
+    }
+  };
+
+  if (loading) return <div className="min-h-screen bg-[#0a0a2a] flex items-center justify-center text-white">Loading...</div>;
+
   return (
     <main className="min-h-screen bg-[#0a0a2a]">
       <Navbar />
       
-      {/* TRADINGVIEW LIVE TICKER TAPE - 100% ERROR FREE */}
+      {/* TRADINGVIEW LIVE TICKER TAPE */}
       <div className="w-full bg-[#0a0a2a] pt-20 pb-4 px-4">
         <div className="max-w-7xl mx-auto">
           <div 
@@ -52,9 +82,12 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link href="/auth/register" className="px-8 py-4 bg-gradient-to-r from-red-500 to-blue-500 rounded-full text-white font-bold text-lg text-center hover:opacity-90 transition">
-                Get Started
-              </Link>
+              <button 
+                onClick={handleGetStarted}
+                className="px-8 py-4 bg-gradient-to-r from-red-500 to-blue-500 rounded-full text-white font-bold text-lg text-center hover:opacity-90 transition"
+              >
+                {isLoggedIn ? 'Go to Dashboard' : 'Get Started'}
+              </button>
               <a href="#features" className="px-8 py-4 border border-blue-500/50 rounded-full text-white font-bold text-lg hover:bg-blue-500/10 transition text-center">
                 Learn More
               </a>

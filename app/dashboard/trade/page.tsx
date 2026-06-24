@@ -32,6 +32,8 @@ export default function TradePage() {
   const [balance, setBalance] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [currentChartPair, setCurrentChartPair] = useState('BITSTAMP:BTCUSD');
+  const [userTimeZone, setUserTimeZone] = useState('UTC');
+  const [marketStatus, setMarketStatus] = useState<'Open' | 'Closed'>('Closed');
 
   // Bot Pagination
   const [botPage, setBotPage] = useState(1);
@@ -55,9 +57,24 @@ export default function TradePage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/auth/login'); return; }
 
-    // 1. Fetch Balance
-    const { data: bal } = await supabase.from('user_balances').select('funding_balance').eq('user_id', user.id).single();
-    if (bal) setBalance(bal.funding_balance || 0);
+    // 1. Fetch Balance & Timezone
+    const { data: userData } = await supabase
+      .from('user_balances')
+      .select('funding_balance, timezone')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (userData) {
+      setBalance(userData.funding_balance || 0);
+      const tz = userData.timezone || 'UTC';
+      setUserTimeZone(tz);
+      
+      // Check market status based on user's local time
+      const now = new Date();
+      const localTime = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+      const hour = localTime.getHours();
+      setMarketStatus(hour >= 8 && hour < 20 ? 'Open' : 'Closed');
+    }
 
     // 2. Fetch ALL Bots
     const { data: botData } = await supabase
@@ -213,7 +230,17 @@ export default function TradePage() {
       
       {/* Header */}
       <div className="flex justify-between items-center border-b border-white/5 pb-4">
-        <h1 className="text-2xl font-bold">Autonomous Trading Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Autonomous Trading Dashboard</h1>
+          <div className="flex items-center gap-3 text-sm text-[#8e96a3] mt-1">
+            <Clock size={14} /> Market: <span className={marketStatus === 'Open' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
+              {marketStatus}
+            </span>
+            <span className="text-xs bg-[#141a24] px-2 py-0.5 rounded-full border border-white/5">
+              {userTimeZone}
+            </span>
+          </div>
+        </div>
         <div className="flex items-center gap-4 text-sm bg-[#141a24] px-4 py-2 rounded-xl border border-white/5">
           <RefreshCw size={16} className="text-[#6366f1] animate-spin" />
           <span className="text-[#8e96a3] text-xs">Updating every 5s</span>

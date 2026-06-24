@@ -8,7 +8,7 @@ const plans = [
     min: '35',
     max: '500',
     return: '5%',
-    duration: '2 Days',
+    duration: '48 HOURS INVESTMENT',
     bonus: 0,
     color: 'from-red-600 to-red-800'
   },
@@ -17,7 +17,7 @@ const plans = [
     min: '120',
     max: '1500',
     return: '10%',
-    duration: '4 Days',
+    duration: '96 HOURS INVESTMENT',
     bonus: 0,
     color: 'from-blue-600 to-blue-800'
   },
@@ -26,7 +26,7 @@ const plans = [
     min: '500',
     max: '5000',
     return: '15%',
-    duration: '7 Days',
+    duration: '168 HOURS INVESTMENT',
     bonus: 100,
     color: 'from-red-600 to-red-800'
   },
@@ -35,7 +35,7 @@ const plans = [
     min: '2000',
     max: '20000',
     return: '30%',
-    duration: '2 Weeks',
+    duration: '336 HOURS INVESTMENT',
     bonus: 200,
     color: 'from-blue-600 to-blue-800'
   }
@@ -66,11 +66,13 @@ export default function InvestmentPlans() {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className={`relative rounded-2xl p-8 bg-gradient-to-br ${plan.color} border border-white/10 shadow-2xl overflow-hidden`}
             >
+              {/* BONUS RIBBON (for NOVA-3 and NOVA-4) */}
               {plan.bonus > 0 && (
-                <div className="absolute top-4 right-4 bg-yellow-400 text-black font-bold px-3 py-1 rounded-full text-sm animate-pulse">
+                <div className="absolute -right-12 top-4 transform rotate-45 bg-red-600 text-white font-bold px-12 py-1 text-sm shadow-lg z-10">
                   BONUS {plan.bonus} USDT
                 </div>
               )}
+              
               <div className="text-3xl font-bold text-white mb-6">{plan.name}</div>
               <div className="grid grid-cols-2 gap-6">
                 <div className="text-center">
@@ -91,7 +93,7 @@ export default function InvestmentPlans() {
                 <div className="text-center">
                   <Calendar className="w-8 h-8 text-white/80 mx-auto mb-2" />
                   <div className="text-sm text-white/80">Duration</div>
-                  <div className="text-2xl font-bold text-white">{plan.duration}</div>
+                  <div className="text-lg font-bold text-white leading-tight">{plan.duration}</div>
                 </div>
               </div>
               <button className="w-full mt-8 py-3 bg-white text-gray-900 font-bold rounded-lg hover:bg-gray-100 transition">

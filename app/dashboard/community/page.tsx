@@ -43,7 +43,7 @@ export default function CommunityPage() {
       setComments(commentsData || []);
       setLoading(false);
 
-      // PREVENT DUPLICATE SUBSCRIPTIONS (THE FIX)
+      // PREVENT DUPLICATE SUBSCRIPTIONS
       if (!subscriptionRef.current) {
         subscriptionRef.current = supabase
           .channel('community-comments')
@@ -63,7 +63,6 @@ export default function CommunityPage() {
 
     fetchData();
 
-    // Cleanup on unmount
     return () => {
       if (subscriptionRef.current) {
         supabase.removeChannel(subscriptionRef.current);
@@ -72,7 +71,6 @@ export default function CommunityPage() {
     };
   }, [supabase, router, scrolledToBottom]);
 
-  // Auto-scroll to bottom on load
   useEffect(() => {
     if (!loading && comments.length > 0) {
       scrollToBottom();
@@ -182,6 +180,22 @@ export default function CommunityPage() {
 
   return (
     <div className="p-6 bg-[#0b0e14] text-white min-h-screen max-w-7xl mx-auto">
+      
+      {/* FLOATING TELEGRAM BUTTON */}
+      <motion.a
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.5 }}
+        href="https://t.me/+v7AFedbnFdc3Nzg8"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 bg-[#0088cc] hover:bg-[#0077b5] transition text-white rounded-full shadow-2xl shadow-blue-500/30"
+      >
+        <Users size={20} />
+        <span className="font-bold">Join Telegram</span>
+        <ExternalLink size={16} className="opacity-70" />
+      </motion.a>
+
       <div className="flex justify-between items-center border-b border-white/5 pb-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -193,32 +207,8 @@ export default function CommunityPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Join Telegram Card */}
+        {/* Left Column: Community Stats */}
         <div className="lg:col-span-1 space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[#141a24] border border-white/5 rounded-2xl p-6 text-center"
-          >
-            <div className="w-20 h-20 bg-[#6366f1]/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#6366f1]/30">
-              <Users className="text-[#6366f1]" size={40} />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Join Our Telegram</h3>
-            <p className="text-[#8e96a3] text-sm mb-6">
-              Get real-time updates, trading tips, and connect with other SmartCodeNova users.
-            </p>
-            <a 
-              href="https://t.me/+v7AFedbnFdc3Nzg8"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[#0088cc] hover:bg-[#0077b5] transition text-white rounded-xl font-bold"
-            >
-              <ExternalLink size={18} />
-              Join Telegram Group
-            </a>
-            <p className="text-xs text-[#8e96a3] mt-4">500+ members already joined</p>
-          </motion.div>
-
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -267,7 +257,6 @@ export default function CommunityPage() {
               )}
             </div>
 
-            {/* Scroll Container */}
             <div 
               ref={chatContainerRef}
               onScroll={handleScroll}
@@ -307,7 +296,6 @@ export default function CommunityPage() {
               )}
             </div>
 
-            {/* Scroll Buttons */}
             <AnimatePresence>
               {showScrollButtons && (
                 <motion.div
@@ -326,7 +314,6 @@ export default function CommunityPage() {
               )}
             </AnimatePresence>
 
-            {/* Input Area */}
             <form onSubmit={handleSendMessage} className="mt-4 pt-4 border-t border-white/5">
               <div className="flex gap-3">
                 <input
@@ -357,7 +344,6 @@ export default function CommunityPage() {
         </div>
       </div>
 
-      {/* Custom Scrollbar CSS */}
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0b0e14; border-radius: 10px; }

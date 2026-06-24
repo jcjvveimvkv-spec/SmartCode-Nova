@@ -13,6 +13,7 @@ import {
   Wallet, TrendingUp, Gift, ArrowRight, 
   Calendar, Clock, ShieldAlert 
 } from 'lucide-react';
+import AINewsTicker from '@/app/components/AINewsTicker'; // <-- NEW IMPORT
 
 const COLORS = ['#3b82f6', '#10b981', '#f97316']; // Blue, Green, Orange
 
@@ -110,6 +111,9 @@ export default function AnalyticsPage() {
           </button>
         </Link>
       </div>
+
+      {/* --- NEW: AI News Ticker --- */}
+      <AINewsTicker />
 
       {/* 3 Charts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

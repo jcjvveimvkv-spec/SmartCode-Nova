@@ -37,6 +37,9 @@ export default function BotStorePage() {
   const [purchaseHistory, setPurchaseHistory] = useState<any[]>([]);
   const [bots, setBots] = useState<any[]>([]);
 
+  // Quick Deploy toggle state per bot (store by bot ID)
+  const [quickDeploy, setQuickDeploy] = useState<{[key: string]: boolean}>({});
+
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
   const botsPerPage = 10;
@@ -72,15 +75,18 @@ export default function BotStorePage() {
         setBots(botData || []);
       }
 
-      // Fetch Purchase History (Last 5)
+      // Fetch Purchase History (Last 5) - Filter out expired bots
       const { data: history } = await supabase
         .from('active_bots')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
-      setPurchaseHistory(history || []);
+      // ✅ FILTER: Remove expired bots from history
+      const filteredHistory = (history || []).filter(bot => bot.status !== 'Expired');
+      setPurchaseHistory(filteredHistory.slice(0, 5)); // Only show latest 5
+
       setLoading(false);
     }
     fetchData();
@@ -90,6 +96,10 @@ export default function BotStorePage() {
 
   const handleSliderChange = (botId: string, value: number) => {
     setSliderValues(prev => ({ ...prev, [botId]: value }));
+  };
+
+  const toggleQuickDeploy = (botId: string) => {
+    setQuickDeploy(prev => ({ ...prev, [botId]: !prev[botId] }));
   };
 
   const handleBuyBot = async (bot: any) => {
@@ -114,6 +124,8 @@ export default function BotStorePage() {
       // 1. Generate Receipt Data
       const licenseKey = generateLicenseKey(bot.license_key_prefix || 'SCN');
       const receiptNumber = generateReceiptNumber();
+      const isQuickDeploy = quickDeploy[bot.id] || false;
+
       const receiptData = {
         receiptNumber,
         product: bot.name,
@@ -121,13 +133,14 @@ export default function BotStorePage() {
         licenseKey,
         botImage: bot.image_url,
         date: new Date().toLocaleString(),
-        status: 'Active'
+        status: 'Active',
+        deployedImmediately: isQuickDeploy
       };
 
       // 2. Deduct funds
       await supabase.from('user_balances').update({ funding_balance: fundingBalance - investmentAmount }).eq('user_id', user.id);
 
-      // 3. Insert bot with receipt_data
+      // 3. Insert bot with receipt_data and quick deploy flag
       const { data: newBot, error: insertError } = await supabase
         .from('active_bots')
         .insert({
@@ -138,9 +151,9 @@ export default function BotStorePage() {
           profit_percent: bot.profit_percent,
           status: 'Active',
           license_key: licenseKey,
-          is_deployed: false,
+          is_deployed: isQuickDeploy, // ✅ QUICK DEPLOY LOGIC
           trading_pairs: bot.trading_pairs,
-          receipt_data: receiptData // SAVING RECEIPT DATA TO DB
+          receipt_data: receiptData
         })
         .select()
         .single();
@@ -155,7 +168,7 @@ export default function BotStorePage() {
 
       // 5. Update local state
       setFundingBalance(fundingBalance - investmentAmount);
-      setPurchaseHistory(prev => [newBot, ...prev]);
+      setPurchaseHistory(prev => [newBot, ...prev.slice(0, 4)]);
 
       // 6. Show the Modal
       setReceipt(receiptData);
@@ -206,6 +219,7 @@ export default function BotStorePage() {
         {currentBots.map((bot) => {
           const investment = getSliderValue(bot);
           const expectedReturn = (investment * (bot.profit_percent / 100)).toFixed(2);
+          const isQuickDeploy = quickDeploy[bot.id] || false;
 
           return (
             <motion.div key={bot.id} className="bg-[#141a24] border border-white/5 rounded-2xl overflow-hidden shadow-sm relative">
@@ -249,10 +263,24 @@ export default function BotStorePage() {
                   <span>{bot.max_deposit} USDT</span>
                 </div>
 
+                {/* QUICK DEPLOY TOGGLE */}
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5">
+                  <span className="text-sm text-[#8e96a3] flex items-center gap-2">
+                    <Zap size={14} className="text-yellow-400" />
+                    Deploy Immediately?
+                  </span>
+                  <button
+                    onClick={() => toggleQuickDeploy(bot.id)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isQuickDeploy ? 'bg-blue-600' : 'bg-[#2a2a4a]'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isQuickDeploy ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
                 <button 
                   onClick={() => handleBuyBot(bot)} 
                   disabled={loading}
-                  className="w-full mt-6 py-3 bg-blue-600 rounded-xl font-bold text-white hover:bg-blue-700 transition disabled:opacity-50"
+                  className="w-full mt-4 py-3 bg-blue-600 rounded-xl font-bold text-white hover:bg-blue-700 transition disabled:opacity-50"
                 >
                   {loading ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mx-auto"></span> : `Activate Bot (${investment} USDT)`}
                 </button>
@@ -338,6 +366,11 @@ export default function BotStorePage() {
                         <span className="bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">
                           {receipt.status}
                         </span>
+                        {receipt.deployedImmediately && (
+                          <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20">
+                            Deployed
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

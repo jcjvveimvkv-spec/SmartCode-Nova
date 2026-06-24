@@ -8,6 +8,7 @@ import {
   CheckCircle, AlertCircle, X, Send, Check, Loader2
 } from 'lucide-react';
 import { notifyTelegramConnected, notifyTelegramConnectedTelegram } from '@/app/lib/telegram-connect';
+import ProfileRing from '@/app/components/ProfileRing'; // <--- NEW IMPORT
 
 export default function SettingsPage() {
   const supabase = createBrowserClient(
@@ -43,13 +44,42 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_balances')
         .select('full_name, phone, country, state, telegram_username, telegram_chat_id, email_notifications, telegram_notifications, avatar_url')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (data) {
+      // SAFETY NET: If the row doesn't exist, create it silently
+      if (!data) {
+        const { error: insertError } = await supabase
+          .from('user_balances')
+          .insert({ user_id: user.id, funding_balance: 0, total_profit_usdt: 0, bonus_usdt: 0 });
+        
+        if (!insertError) {
+          const { data: newData } = await supabase
+            .from('user_balances')
+            .select('full_name, phone, country, state, telegram_username, telegram_chat_id, email_notifications, telegram_notifications, avatar_url')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (newData) {
+            setFormData({
+              full_name: newData.full_name || '',
+              phone: newData.phone || '',
+              country: newData.country || '',
+              state: newData.state || '',
+              telegram_username: newData.telegram_username || '',
+              telegram_chat_id: newData.telegram_chat_id || '',
+              email_notifications: newData.email_notifications ?? true,
+              telegram_notifications: newData.telegram_notifications ?? false,
+              avatar_url: newData.avatar_url || ''
+            });
+            if (newData.telegram_chat_id) {
+              setIsConnected(true);
+            }
+          }
+        }
+      } else if (data) {
         setFormData({
           full_name: data.full_name || '',
           phone: data.phone || '',
@@ -153,9 +183,7 @@ export default function SettingsPage() {
   };
 
   const handleStepOneContinue = () => {
-    // Open Telegram in a new tab
     window.open('https://t.me/SmartCodeNova_bot', '_blank');
-    // Transition to Step 2 in the modal
     setIsStepOne(false);
   };
 
@@ -165,7 +193,6 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not found');
 
-      // UPDATED: Direct Supabase Edge Function URL
       const response = await fetch('https://texuzrwyjecjxkrnemeg.supabase.co/functions/v1/telegram-webhook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -176,7 +203,6 @@ export default function SettingsPage() {
 
       const data = await response.json();
       if (data.chat_id) {
-        // Update state and database
         setFormData(prev => ({ ...prev, telegram_chat_id: data.chat_id }));
         await supabase
           .from('user_balances')
@@ -185,19 +211,14 @@ export default function SettingsPage() {
         
         setIsConnected(true);
 
-        // --- FIX STARTS HERE ---
-        // Send Telegram Welcome Message
         const nameToUse = formData.full_name || user.email || 'User';
         await notifyTelegramConnectedTelegram(data.chat_id, nameToUse);
         
-        // Send Email Confirmation
         const emailToUse = user.email || '';
         if (emailToUse) {
           await notifyTelegramConnected(emailToUse, nameToUse);
         }
-        // --- FIX ENDS HERE ---
 
-        // Close modal and show success
         setIsModalOpen(false);
         setSuccess('✅ Telegram connected successfully! Check your email and Telegram.');
       } else {
@@ -227,20 +248,19 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="bg-[#141a24] border border-white/5 rounded-2xl p-6 md:col-span-1">
           <div className="flex flex-col items-center text-center">
+            
+            {/* UPDATED AVATAR WITH PROFILE RING */}
             <div 
-              className="w-32 h-32 rounded-full bg-[#0b0e14] border-2 border-[#6366f1]/50 flex items-center justify-center cursor-pointer overflow-hidden relative group"
+              className="relative cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
-              {formData.avatar_url ? (
-                <img src={formData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <User size={48} className="text-[#8e96a3]" />
-              )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+              <ProfileRing src={formData.avatar_url} size={128} />
+              <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition flex items-center justify-center rounded-full">
                 <UploadCloud size={24} className="text-white" />
               </div>
               <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageUpload} className="hidden" />
             </div>
+
             <h2 className="text-lg font-bold mt-4">{formData.full_name || 'User'}</h2>
             <p className="text-[#8e96a3] text-sm">Click the avatar to upload a new photo.</p>
           </div>
@@ -280,7 +300,6 @@ export default function SettingsPage() {
                 <input name="telegram_username" value={formData.telegram_username} onChange={handleChange} placeholder="@username" className="bg-[#141a24] border border-white/5 rounded-lg px-3 py-1.5 text-sm text-white w-40 text-right" />
               </div>
 
-              {/* NEW TELEGRAM CONNECT CARD */}
               <div className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-300 ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-[#0b0e14] border-white/5'}`}>
                 <div>
                   <p className="font-medium text-sm flex items-center gap-2">

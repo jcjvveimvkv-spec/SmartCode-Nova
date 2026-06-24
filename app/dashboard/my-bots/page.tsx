@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { 
   Bot, TrendingUp, TrendingDown, DollarSign, 
   Calendar, AlertCircle, CheckCircle2,
-  RefreshCw, Wallet, Copy, CheckCircle 
+  RefreshCw, Wallet, Copy, CheckCircle, Search, Trash2, Filter, ArrowUpDown
 } from 'lucide-react';
 import { sendTelegram, sendEmail } from '@/app/lib/notifications';
 
@@ -34,6 +34,15 @@ export default function MyBotsPage() {
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deployingId, setDeployingId] = useState<string | null>(null);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const botsPerPage = 10;
+
+  // Filters
+  const [showExpired, setShowExpired] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'profit_high' | 'profit_low'>('newest');
 
   useEffect(() => {
     async function fetchBots() {
@@ -71,7 +80,6 @@ export default function MyBotsPage() {
     setError(null);
 
     try {
-      // 1. Update database
       const { error: updateError } = await supabase
         .from('active_bots')
         .update({ is_deployed: true })
@@ -79,7 +87,6 @@ export default function MyBotsPage() {
 
       if (updateError) throw updateError;
 
-      // 2. Fetch user details
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
 
@@ -89,13 +96,11 @@ export default function MyBotsPage() {
         .eq('user_id', user.id)
         .single();
 
-      // 3. Send Telegram Notification (using chat_id)
       if (userData?.telegram_chat_id) {
         const tgMsg = `🚀 <b>BOT DEPLOYED</b>\n\n🤖 Bot: ${botName}\n💰 Investment: ${invested} USDT\n🔗 License Key: ${licenseKey}\n🟢 Status: Live Trading`;
         await sendTelegram(userData.telegram_chat_id, tgMsg);
       }
 
-      // 4. Send Email Notification (Restored)
       if (userData?.email) {
         const emailHtml = `
           <div style="background-color: #0b0e14; padding: 40px; font-family: Arial, sans-serif; color: #f3f4f6;">
@@ -118,7 +123,6 @@ export default function MyBotsPage() {
         await sendEmail(userData.email, '🚀 Bot Deployed Successfully', emailHtml);
       }
 
-      // 5. Update local state
       setBots(prev => prev.map(b => b.id === botId ? { ...b, is_deployed: true } : b));
       setDeployingId(null);
       alert('Bot deployed successfully! Check your Telegram/Email for confirmation.');
@@ -128,39 +132,118 @@ export default function MyBotsPage() {
     }
   };
 
+  const handleDeleteExpired = async () => {
+    if (!confirm('Are you sure you want to delete ALL expired bots? This action cannot be undone.')) return;
+    
+    const expiredBots = bots.filter(b => b.status === 'Expired');
+    for (const bot of expiredBots) {
+      await supabase.from('active_bots').delete().eq('id', bot.id);
+    }
+    setBots(prev => prev.filter(b => b.status !== 'Expired'));
+    alert(`Deleted ${expiredBots.length} expired bot(s).`);
+  };
+
+  // Filter and sort bots
+  const filteredBots = bots
+    .filter(b => showExpired ? true : b.status !== 'Expired')
+    .filter(b => b.bot_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      switch(sortBy) {
+        case 'newest': return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'oldest': return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'profit_high': return (b.profit_percent || 0) - (a.profit_percent || 0);
+        case 'profit_low': return (a.profit_percent || 0) - (b.profit_percent || 0);
+        default: return 0;
+      }
+    });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredBots.length / botsPerPage);
+  const currentBots = filteredBots.slice(
+    (currentPage - 1) * botsPerPage,
+    currentPage * botsPerPage
+  );
+
   if (loading) return <div className="flex items-center justify-center h-[400px] w-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366f1]"></div></div>;
 
   return (
     <div className="space-y-8 w-full max-w-full bg-[#0b0e14]">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 w-full">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">My Active Bots</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">My Bots</h1>
           <p className="text-[#8e96a3] text-sm mt-1">Manage your licenses and deploy your bots.</p>
         </div>
-        <Link href="/dashboard/buy-bot">
-          <button className="px-5 py-2.5 bg-gradient-to-r from-[#6366f1] to-[#3b82f6] text-white rounded-xl text-sm font-medium hover:opacity-90 transition shadow-lg shadow-blue-500/20 flex items-center gap-2">
-            <Bot size={16} /> Buy New Bot
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/dashboard/buy-bot">
+            <button className="px-5 py-2.5 bg-gradient-to-r from-[#6366f1] to-[#3b82f6] text-white rounded-xl text-sm font-medium hover:opacity-90 transition shadow-lg shadow-blue-500/20 flex items-center gap-2">
+              <Bot size={16} /> Buy New Bot
+            </button>
+          </Link>
+          {bots.filter(b => b.status === 'Expired').length > 0 && (
+            <button 
+              onClick={handleDeleteExpired}
+              className="px-4 py-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm font-medium hover:bg-red-500/20 transition flex items-center gap-2"
+            >
+              <Trash2 size={16} /> Delete Expired
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="flex flex-wrap gap-4 items-center bg-[#141a24] border border-white/5 rounded-xl p-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8e96a3] w-4 h-4" />
+          <input 
+            type="text" 
+            placeholder="Search bots..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-[#0b0e14] border border-white/5 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowExpired(!showExpired)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${showExpired ? 'bg-[#6366f1]/10 text-[#6366f1] border border-[#6366f1]/30' : 'bg-[#0b0e14] border border-white/5 text-[#8e96a3]'}`}
+          >
+            <Filter size={14} /> {showExpired ? 'Showing All' : 'Hide Expired'}
           </button>
-        </Link>
+
+          <div className="flex items-center gap-2 bg-[#0b0e14] border border-white/5 rounded-lg px-3 py-2">
+            <ArrowUpDown size={14} className="text-[#8e96a3]" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="bg-transparent border-none text-sm text-white focus:outline-none"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="profit_high">Highest Profit %</option>
+              <option value="profit_low">Lowest Profit %</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400"><AlertCircle className="w-5 h-5" /><span>{error}</span></div>}
 
-      {!error && bots.length === 0 && (
+      {filteredBots.length === 0 && (
         <div className="bg-[#141a24] border border-white/5 rounded-2xl p-12 w-full flex flex-col items-center justify-center text-center">
           <div className="w-20 h-20 rounded-full bg-[#6366f1]/10 flex items-center justify-center mb-4 border border-[#6366f1]/20">
             <Bot className="w-10 h-10 text-[#6366f1]" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">No active bots found</h3>
+          <h3 className="text-xl font-bold text-white mb-2">No bots found</h3>
           <p className="text-[#8e96a3] text-sm max-w-md mb-6">Visit the Bot Store to invest and activate your first bot.</p>
           <Link href="/dashboard/buy-bot"><button className="px-6 py-3 bg-gradient-to-r from-[#6366f1] to-[#3b82f6] text-white rounded-xl font-medium hover:opacity-90 transition shadow-lg shadow-blue-500/20">Browse Bot Store</button></Link>
         </div>
       )}
 
-      {!error && bots.length > 0 && (
+      {filteredBots.length > 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            {bots.map((bot, index) => {
+            {currentBots.map((bot, index) => {
               const profitPercent = bot.profit_percent || 0;
               const isProfitable = profitPercent >= 0;
               const daysActive = Math.floor((new Date().getTime() - new Date(bot.created_at).getTime()) / (1000 * 60 * 60 * 24));
@@ -178,12 +261,12 @@ export default function MyBotsPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${bot.status === 'Active' ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20' : 'bg-[#8e96a3]/10 text-[#8e96a3] border border-[#8e96a3]/20'}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${bot.status === 'Active' ? 'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                         {bot.status === 'Active' && <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse"></span>}
                         {bot.status}
                       </span>
                       {bot.is_deployed && (
-                        <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">✅ Deployed</span>
+                        <span className="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">✅ Deployed</span>
                       )}
                     </div>
                   </div>
@@ -236,6 +319,29 @@ export default function MyBotsPage() {
               );
             })}
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 pt-4 border-t border-white/5">
+              <button 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-[#141a24] rounded-lg border border-white/5 text-[#8e96a3] hover:text-white hover:bg-white/5 transition disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-[#8e96a3]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-[#141a24] rounded-lg border border-white/5 text-[#8e96a3] hover:text-white hover:bg-white/5 transition disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
