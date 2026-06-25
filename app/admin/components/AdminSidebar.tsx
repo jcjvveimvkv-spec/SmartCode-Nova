@@ -5,14 +5,32 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, Users, Bot, Receipt, 
-  Menu, X, ChevronLeft, ChevronRight, ShieldCheck
+  Menu, X, ChevronLeft, ChevronRight, ShieldCheck,
+  Wallet, FileText, Coins
 } from 'lucide-react';
 
 const menuItems = [
   { name: 'Admin Dashboard', icon: LayoutDashboard, href: '/admin' },
   { name: 'User Management', icon: Users, href: '/admin/users' },
   { name: 'Bot Management', icon: Bot, href: '/admin/bots' },
-  { name: 'Receipt Generator', icon: Receipt, href: '/admin/receipts' },
+  { 
+    name: 'Receipt Generator', 
+    icon: FileText, 
+    href: '/admin/receipts',
+    description: 'Standard Receipts'
+  },
+  { 
+    name: 'Crypto Receipts', 
+    icon: Wallet, 
+    href: '/admin/crypto-receipts',
+    description: 'All Platforms'
+  },
+  { 
+    name: 'Binance', 
+    icon: Coins, 
+    href: '/admin/crypto-receipts/binance',
+    description: 'Binance Receipts'
+  },
   { name: 'Approvals', icon: ShieldCheck, href: '/admin/approvals' },
 ];
 
@@ -74,7 +92,14 @@ export default function AdminSidebar() {
               <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
                 <div className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all cursor-pointer ${isActive ? 'bg-[#6366f1]/10 text-[#6366f1] border-l-2 border-[#6366f1]' : 'text-[#8e96a3] hover:text-white hover:bg-white/5'} ${isCollapsed ? 'justify-center px-2' : ''}`}>
                   <IconComponent size={20} />
-                  {!isCollapsed && <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>}
+                  {!isCollapsed && (
+                    <div className="flex flex-col">
+                      <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>
+                      {item.description && (
+                        <span className="text-[10px] text-[#8e96a3]">{item.description}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </Link>
             );
