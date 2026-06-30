@@ -17,11 +17,12 @@ export async function POST(request: Request) {
     // Generate HTML for the screenshot
     const html = generateTelegramHTML(testimonial);
 
-    // Return the HTML - client will render it with html2canvas
+    // Return HTML for client-side rendering
     return NextResponse.json({
       success: true,
       html: html,
-      note: 'Use html2canvas on the client side to render this HTML as an image',
+      message: 'HTML generated successfully',
+      testimonial: testimonial,
     });
   } catch (error: any) {
     console.error('Error generating screenshot HTML:', error);
