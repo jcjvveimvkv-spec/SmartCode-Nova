@@ -1,104 +1,67 @@
-// app/admin/crypto-receipts/bitcoin/page.tsx
+// app/admin/crypto-receipts/paypal/page.tsx
 'use client';
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Moon, Sun } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { BitcoinReceipt } from '../components/receipt-generator';
+import { PayPalReceipt } from '../components/receipt-generator';
 
 interface FormData {
-  cryptocurrency: string;
+  recipientName: string;
+  recipientEmail: string;
   amount: string;
-  amountUSD: string;
-  receiverAddress: string;
-  networkFee: string;
-  transactionMode: 'send' | 'receive';
-  useCustomDate: boolean;
+  currency: string;
+  note: string;
+  transactionType: 'send' | 'receive';
+  transactionMode: 'goods_services' | 'friends_family';
+  status: 'completed' | 'pending' | 'on_hold' | 'refunded';
   date: string;
   time: string;
-  txid: string;
-  network: string;
-  note: string;
+  transactionId: string;
+  fee: string;
+  useCustomDate: boolean;
 }
 
-// Network configurations for each cryptocurrency
-const networkConfigs: Record<string, { networks: string[]; defaultNetwork: string }> = {
-  BTC: {
-    networks: ['Bitcoin (BTC)'],
-    defaultNetwork: 'Bitcoin (BTC)'
-  },
-  ETH: {
-    networks: ['Ethereum (ERC20)'],
-    defaultNetwork: 'Ethereum (ERC20)'
-  },
-  USDT: {
-    networks: ['BSC (BEP20)', 'Ethereum (ERC20)', 'Tron (TRC20)', 'Solana (SPL)'],
-    defaultNetwork: 'BSC (BEP20)'
-  },
-  BNB: {
-    networks: ['BSC (BEP20)'],
-    defaultNetwork: 'BSC (BEP20)'
-  },
-  SOL: {
-    networks: ['Solana (SPL)'],
-    defaultNetwork: 'Solana (SPL)'
-  },
-  XRP: {
-    networks: ['Ripple (XRP)'],
-    defaultNetwork: 'Ripple (XRP)'
-  },
-  ADA: {
-    networks: ['Cardano (ADA)'],
-    defaultNetwork: 'Cardano (ADA)'
-  },
-  DOGE: {
-    networks: ['Dogecoin (DOGE)'],
-    defaultNetwork: 'Dogecoin (DOGE)'
-  },
-  LTC: {
-    networks: ['Litecoin (LTC)'],
-    defaultNetwork: 'Litecoin (LTC)'
-  },
-};
-
-export default function BitcoinPage() {
+export default function PayPalPage() {
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   
   const [formData, setFormData] = useState<FormData>({
-    cryptocurrency: 'BTC',
+    recipientName: '',
+    recipientEmail: '',
     amount: '',
-    amountUSD: '',
-    receiverAddress: '',
-    networkFee: '',
-    transactionMode: 'send',
-    useCustomDate: false,
+    currency: 'USD',
+    note: '',
+    transactionType: 'send',
+    transactionMode: 'goods_services',
+    status: 'completed',
     date: '',
     time: '',
-    txid: '',
-    network: 'Bitcoin (BTC)',
-    note: '',
+    transactionId: '',
+    fee: '',
+    useCustomDate: false,
   });
 
   const [isGenerated, setIsGenerated] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  const cryptocurrencies = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'LTC'];
+  const currencies = [
+    'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 
+    'INR', 'BRL', 'ZAR', 'NGN', 'KES', 'GHS', 'PKR', 'BDT',
+    'VND', 'PHP', 'SGD', 'NZD'
+  ];
+
+  const statusOptions = [
+    { value: 'completed', label: '✅ Completed' },
+    { value: 'pending', label: '⏳ Pending' },
+    { value: 'on_hold', label: '⏸️ On Hold' },
+    { value: 'refunded', label: '↩️ Refunded' },
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
-    if (name === 'cryptocurrency') {
-      const config = networkConfigs[value];
-      setFormData(prev => ({
-        ...prev,
-        cryptocurrency: value,
-        network: config?.defaultNetwork || '',
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleToggleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,8 +70,8 @@ export default function BitcoinPage() {
   };
 
   const handleGenerate = () => {
-    if (!formData.amount || !formData.receiverAddress) {
-      alert('Please fill in Amount and Receiver Address');
+    if (!formData.amount || !formData.recipientName) {
+      alert('Please fill in Amount and Recipient Name');
       return;
     }
     setIsGenerated(true);
@@ -125,8 +88,9 @@ export default function BitcoinPage() {
     const now = getCurrentDateTime();
     return {
       ...formData,
-      date: formData.useCustomDate ? formData.date : now.date,
-      time: formData.useCustomDate ? formData.time : now.time,
+      date: formData.date || now.date,
+      time: formData.time || now.time,
+      transactionId: formData.transactionId || `PP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
     };
   };
 
@@ -137,14 +101,14 @@ export default function BitcoinPage() {
     try {
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
-        backgroundColor: themeMode === 'dark' ? '#0a0a0f' : '#ffffff',
+        backgroundColor: themeMode === 'dark' ? '#1e2530' : '#ffffff',
         useCORS: true,
         logging: false,
       });
       
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `bitcoin-receipt-${Date.now()}.png`;
+      link.download = `paypal-receipt-${Date.now()}.png`;
       link.href = image;
       link.click();
     } catch (error) {
@@ -165,12 +129,12 @@ export default function BitcoinPage() {
       return;
     }
 
-    const bgColor = themeMode === 'dark' ? '#0a0a0f' : '#ffffff';
+    const bgColor = themeMode === 'dark' ? '#1e2530' : '#ffffff';
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Bitcoin.com Receipt</title>
+          <title>PayPal Receipt</title>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
           <style>
             body { margin: 0; padding: 20px; background: ${bgColor}; }
@@ -196,10 +160,10 @@ export default function BitcoinPage() {
   };
 
   const platform = {
-    name: 'Bitcoin.com',
-    icon: '₿',
-    color: '#10b981', // Green color matching Bitcoin.com
-    type: 'Cryptocurrency'
+    name: 'PayPal',
+    icon: 'P',
+    color: '#003087',
+    type: 'Payment'
   };
 
   const toggleTheme = () => {
@@ -229,10 +193,10 @@ export default function BitcoinPage() {
             </div>
             <div>
               <h1 className={`text-2xl font-bold ${themeMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                Generate Bitcoin.com Receipt
+                Generate PayPal Receipt
               </h1>
               <p className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Create professional Bitcoin.com payment receipts
+                Create professional PayPal payment receipts
               </p>
             </div>
           </div>
@@ -265,48 +229,70 @@ export default function BitcoinPage() {
         {/* LEFT COLUMN: Form */}
         <div className={`rounded-lg border p-4 md:p-6 ${themeMode === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <h2 className={`text-lg font-semibold mb-4 ${themeMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-            📝 Transaction Details
+            📝 Recipient Information
           </h2>
           
           <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-            {/* Cryptocurrency */}
+            {/* Recipient Name */}
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Cryptocurrency
+                Recipient Name
               </label>
-              <select
-                name="cryptocurrency"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+              <input
+                type="text"
+                name="recipientName"
+                placeholder="John Doe"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
-                value={formData.cryptocurrency}
+                value={formData.recipientName}
                 onChange={handleInputChange}
-              >
-                {cryptocurrencies.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                required
+              />
             </div>
 
-            {/* Network */}
+            {/* Recipient Email */}
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Network
+                Recipient Email
               </label>
-              <select
-                name="network"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+              <input
+                type="email"
+                name="recipientEmail"
+                placeholder="john.doe@email.com"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
-                value={formData.network}
+                value={formData.recipientEmail}
+                onChange={handleInputChange}
+              />
+            </div>
+
+            <h2 className={`text-lg font-semibold mt-6 pt-4 border-t ${themeMode === 'dark' ? 'border-gray-700' : 'border-gray-200'} ${themeMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              💰 Transaction Details
+            </h2>
+
+            {/* Currency */}
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Currency
+              </label>
+              <select
+                name="currency"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  themeMode === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                value={formData.currency}
                 onChange={handleInputChange}
               >
-                {networkConfigs[formData.cryptocurrency]?.networks.map((network) => (
-                  <option key={network} value={network}>{network}</option>
+                {currencies.map((c) => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>
@@ -320,123 +306,73 @@ export default function BitcoinPage() {
                 type="number"
                 name="amount"
                 placeholder="0.00"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
                 value={formData.amount}
                 onChange={handleInputChange}
-                step="0.00000001"
+                step="0.01"
                 required
               />
             </div>
 
-            {/* Amount (USD) */}
+            {/* Fee */}
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Amount (USD)
+                Fee (Optional)
               </label>
               <input
                 type="number"
-                name="amountUSD"
-                placeholder="Auto-calculated..."
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                name="fee"
+                placeholder="0.00"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
-                value={formData.amountUSD}
+                value={formData.fee}
                 onChange={handleInputChange}
                 step="0.01"
               />
-              <p className={`text-xs mt-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                Leave blank to auto-calculate based on current market prices.
-              </p>
             </div>
 
-            {/* Receiver Address */}
+            {/* Transaction Type */}
             <div>
               <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Receiver Address
+                Transaction Type
               </label>
-              <input
-                type="text"
-                name="receiverAddress"
-                placeholder="Enter destination wallet address"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm ${
-                  themeMode === 'dark' 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                value={formData.receiverAddress}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-
-            {/* TXID */}
-            <div>
-              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Transaction ID (TXID)
-              </label>
-              <input
-                type="text"
-                name="txid"
-                placeholder="Enter transaction ID (optional)"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm ${
-                  themeMode === 'dark' 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                value={formData.txid}
-                onChange={handleInputChange}
-              />
-              <p className={`text-xs mt-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                Leave blank to auto-generate
-              </p>
-            </div>
-
-            {/* Network Fee */}
-            <div>
-              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Network Fee
-              </label>
-              <input
-                type="number"
-                name="networkFee"
-                placeholder="Auto-calculated..."
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  themeMode === 'dark' 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                value={formData.networkFee}
-                onChange={handleInputChange}
-                step="0.00000001"
-              />
-              <p className={`text-xs mt-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                Automatically calculated based on amount and coin selected.
-              </p>
-            </div>
-
-            {/* Note */}
-            <div>
-              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Note (Optional)
-              </label>
-              <input
-                type="text"
-                name="note"
-                placeholder="Add a personal note"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  themeMode === 'dark' 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                value={formData.note}
-                onChange={handleInputChange}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`py-3 px-4 rounded-lg font-medium transition-all ${
+                    formData.transactionType === 'send'
+                      ? 'bg-blue-500/20 text-blue-600 border-2 border-blue-500'
+                      : themeMode === 'dark'
+                        ? 'bg-gray-700 text-gray-400 border-2 border-transparent hover:border-gray-500'
+                        : 'bg-gray-100 text-gray-500 border-2 border-transparent hover:border-gray-300'
+                  }`}
+                  onClick={() => setFormData(prev => ({ ...prev, transactionType: 'send' }))}
+                >
+                  📤 Send
+                  <span className="block text-xs opacity-60">Outgoing payment</span>
+                </button>
+                <button
+                  type="button"
+                  className={`py-3 px-4 rounded-lg font-medium transition-all ${
+                    formData.transactionType === 'receive'
+                      ? 'bg-green-500/20 text-green-600 border-2 border-green-500'
+                      : themeMode === 'dark'
+                        ? 'bg-gray-700 text-gray-400 border-2 border-transparent hover:border-gray-500'
+                        : 'bg-gray-100 text-gray-500 border-2 border-transparent hover:border-gray-300'
+                  }`}
+                  onClick={() => setFormData(prev => ({ ...prev, transactionType: 'receive' }))}
+                >
+                  📥 Receive
+                  <span className="block text-xs opacity-60">Incoming payment</span>
+                </button>
+              </div>
             </div>
 
             {/* Transaction Mode */}
@@ -448,32 +384,94 @@ export default function BitcoinPage() {
                 <button
                   type="button"
                   className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                    formData.transactionMode === 'send'
-                      ? 'bg-red-500/20 text-red-500 border-2 border-red-500'
+                    formData.transactionMode === 'goods_services'
+                      ? 'bg-blue-500/20 text-blue-600 border-2 border-blue-500'
                       : themeMode === 'dark'
                         ? 'bg-gray-700 text-gray-400 border-2 border-transparent hover:border-gray-500'
                         : 'bg-gray-100 text-gray-500 border-2 border-transparent hover:border-gray-300'
                   }`}
-                  onClick={() => setFormData(prev => ({ ...prev, transactionMode: 'send' }))}
+                  onClick={() => setFormData(prev => ({ ...prev, transactionMode: 'goods_services' }))}
                 >
-                  📤 Send
-                  <span className="block text-xs opacity-60">Outgoing transaction</span>
+                  🛒 Goods & Services
+                  <span className="block text-xs opacity-60">Purchase protection</span>
                 </button>
                 <button
                   type="button"
                   className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                    formData.transactionMode === 'receive'
-                      ? 'bg-green-500/20 text-green-500 border-2 border-green-500'
+                    formData.transactionMode === 'friends_family'
+                      ? 'bg-green-500/20 text-green-600 border-2 border-green-500'
                       : themeMode === 'dark'
                         ? 'bg-gray-700 text-gray-400 border-2 border-transparent hover:border-gray-500'
                         : 'bg-gray-100 text-gray-500 border-2 border-transparent hover:border-gray-300'
                   }`}
-                  onClick={() => setFormData(prev => ({ ...prev, transactionMode: 'receive' }))}
+                  onClick={() => setFormData(prev => ({ ...prev, transactionMode: 'friends_family' }))}
                 >
-                  📥 Receive
-                  <span className="block text-xs opacity-60">Incoming transaction</span>
+                  👨‍👩‍👧 Friends & Family
+                  <span className="block text-xs opacity-60">No purchase protection</span>
                 </button>
               </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Status
+              </label>
+              <select
+                name="status"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  themeMode === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                value={formData.status}
+                onChange={handleInputChange}
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Transaction ID */}
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Transaction ID
+              </label>
+              <input
+                type="text"
+                name="transactionId"
+                placeholder="Auto-generated"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm ${
+                  themeMode === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                value={formData.transactionId}
+                onChange={handleInputChange}
+              />
+              <p className={`text-xs mt-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Leave blank to auto-generate
+              </p>
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                Note (Optional)
+              </label>
+              <input
+                type="text"
+                name="note"
+                placeholder="Add a note about this payment"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  themeMode === 'dark' 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                value={formData.note}
+                onChange={handleInputChange}
+              />
             </div>
 
             {/* Custom Date & Time */}
@@ -490,7 +488,7 @@ export default function BitcoinPage() {
                     checked={formData.useCustomDate}
                     onChange={handleToggleChange}
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-500"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-500"></div>
                 </label>
               </div>
               <p className={`text-xs mb-3 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -506,7 +504,7 @@ export default function BitcoinPage() {
                     <input
                       type="date"
                       name="date"
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
                         themeMode === 'dark' 
                           ? 'bg-gray-700 border-gray-600 text-white' 
                           : 'bg-white border-gray-300 text-gray-900'
@@ -522,7 +520,7 @@ export default function BitcoinPage() {
                     <input
                       type="time"
                       name="time"
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
                         themeMode === 'dark' 
                           ? 'bg-gray-700 border-gray-600 text-white' 
                           : 'bg-white border-gray-300 text-gray-900'
@@ -539,9 +537,9 @@ export default function BitcoinPage() {
             <button
               type="submit"
               onClick={handleGenerate}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-green-500/25"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-blue-600/25"
             >
-              🧾 Generate Bitcoin.com Receipt
+              🧾 Generate PayPal Receipt
             </button>
           </form>
         </div>
@@ -582,22 +580,19 @@ export default function BitcoinPage() {
           <div className="min-h-[500px] flex items-center justify-center">
             {isGenerated ? (
               <div ref={receiptRef} className="w-full flex justify-center">
-                <BitcoinReceipt data={getReceiptData()} themeMode={themeMode} />
+                <PayPalReceipt data={getReceiptData()} themeMode={themeMode} />
               </div>
             ) : (
               <div className={`text-center ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                 <p className="text-5xl mb-3">🧾</p>
-                <p className="text-sm font-medium">No Bitcoin.com Receipt Generated</p>
+                <p className="text-sm font-medium">No PayPal Receipt Generated</p>
                 <p className="text-xs mt-1">Fill in the form and click Generate</p>
                 <p className={`text-xs mt-4 ${themeMode === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
-                  Platform: <span className="font-medium">Bitcoin.com</span>
-                </p>
-                <p className={`text-xs ${themeMode === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
-                  Mode: <span className="font-medium capitalize">{formData.transactionMode}</span>
+                  Platform: <span className="font-medium">PayPal</span>
                 </p>
                 {formData.amount && (
                   <p className={`text-xs ${themeMode === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
-                    Amount: <span className="font-medium">{formData.amount} {formData.cryptocurrency}</span>
+                    Amount: <span className="font-medium">{formData.amount} {formData.currency}</span>
                   </p>
                 )}
               </div>

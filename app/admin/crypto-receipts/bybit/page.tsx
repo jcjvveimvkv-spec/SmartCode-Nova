@@ -1,11 +1,11 @@
-// app/admin/crypto-receipts/bitcoin/page.tsx
+// app/admin/crypto-receipts/bybit/page.tsx
 'use client';
 
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Moon, Sun } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { BitcoinReceipt } from '../components/receipt-generator';
+import { BybitReceipt } from '../components/receipt-generator';
 
 interface FormData {
   cryptocurrency: string;
@@ -19,7 +19,6 @@ interface FormData {
   time: string;
   txid: string;
   network: string;
-  note: string;
 }
 
 // Network configurations for each cryptocurrency
@@ -62,11 +61,11 @@ const networkConfigs: Record<string, { networks: string[]; defaultNetwork: strin
   },
 };
 
-export default function BitcoinPage() {
+export default function BybitPage() {
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   
   const [formData, setFormData] = useState<FormData>({
-    cryptocurrency: 'BTC',
+    cryptocurrency: 'USDT',
     amount: '',
     amountUSD: '',
     receiverAddress: '',
@@ -76,8 +75,7 @@ export default function BitcoinPage() {
     date: '',
     time: '',
     txid: '',
-    network: 'Bitcoin (BTC)',
-    note: '',
+    network: 'BSC (BEP20)',
   });
 
   const [isGenerated, setIsGenerated] = useState(false);
@@ -137,14 +135,14 @@ export default function BitcoinPage() {
     try {
       const canvas = await html2canvas(receiptRef.current, {
         scale: 2,
-        backgroundColor: themeMode === 'dark' ? '#0a0a0f' : '#ffffff',
+        backgroundColor: themeMode === 'dark' ? '#000000' : '#ffffff',
         useCORS: true,
         logging: false,
       });
       
       const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `bitcoin-receipt-${Date.now()}.png`;
+      link.download = `bybit-receipt-${Date.now()}.png`;
       link.href = image;
       link.click();
     } catch (error) {
@@ -165,12 +163,12 @@ export default function BitcoinPage() {
       return;
     }
 
-    const bgColor = themeMode === 'dark' ? '#0a0a0f' : '#ffffff';
+    const bgColor = themeMode === 'dark' ? '#000000' : '#ffffff';
 
     printWindow.document.write(`
       <html>
         <head>
-          <title>Bitcoin.com Receipt</title>
+          <title>Bybit Receipt</title>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
           <style>
             body { margin: 0; padding: 20px; background: ${bgColor}; }
@@ -196,9 +194,9 @@ export default function BitcoinPage() {
   };
 
   const platform = {
-    name: 'Bitcoin.com',
-    icon: '₿',
-    color: '#10b981', // Green color matching Bitcoin.com
+    name: 'Bybit',
+    icon: 'B',
+    color: '#f7a600',
     type: 'Cryptocurrency'
   };
 
@@ -229,10 +227,10 @@ export default function BitcoinPage() {
             </div>
             <div>
               <h1 className={`text-2xl font-bold ${themeMode === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                Generate Bitcoin.com Receipt
+                Generate {platform.name} Receipt
               </h1>
               <p className={`text-sm ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                Create professional Bitcoin.com payment receipts
+                Create professional cryptocurrency transaction receipts
               </p>
             </div>
           </div>
@@ -276,7 +274,7 @@ export default function BitcoinPage() {
               </label>
               <select
                 name="cryptocurrency"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -297,7 +295,7 @@ export default function BitcoinPage() {
               </label>
               <select
                 name="network"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -320,7 +318,7 @@ export default function BitcoinPage() {
                 type="number"
                 name="amount"
                 placeholder="0.00"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -341,7 +339,7 @@ export default function BitcoinPage() {
                 type="number"
                 name="amountUSD"
                 placeholder="Auto-calculated..."
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -364,7 +362,7 @@ export default function BitcoinPage() {
                 type="text"
                 name="receiverAddress"
                 placeholder="Enter destination wallet address"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-mono text-sm ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -384,7 +382,7 @@ export default function BitcoinPage() {
                 type="text"
                 name="txid"
                 placeholder="Enter transaction ID (optional)"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent font-mono text-sm ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -406,7 +404,7 @@ export default function BitcoinPage() {
                 type="number"
                 name="networkFee"
                 placeholder="Auto-calculated..."
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
                   themeMode === 'dark' 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'bg-white border-gray-300 text-gray-900'
@@ -418,25 +416,6 @@ export default function BitcoinPage() {
               <p className={`text-xs mt-1 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                 Automatically calculated based on amount and coin selected.
               </p>
-            </div>
-
-            {/* Note */}
-            <div>
-              <label className={`block text-sm font-medium mb-1.5 ${themeMode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                Note (Optional)
-              </label>
-              <input
-                type="text"
-                name="note"
-                placeholder="Add a personal note"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent ${
-                  themeMode === 'dark' 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-                value={formData.note}
-                onChange={handleInputChange}
-              />
             </div>
 
             {/* Transaction Mode */}
@@ -490,7 +469,7 @@ export default function BitcoinPage() {
                     checked={formData.useCustomDate}
                     onChange={handleToggleChange}
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-500"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 dark:peer-focus:ring-yellow-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-yellow-500"></div>
                 </label>
               </div>
               <p className={`text-xs mb-3 ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -506,7 +485,7 @@ export default function BitcoinPage() {
                     <input
                       type="date"
                       name="date"
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-sm ${
                         themeMode === 'dark' 
                           ? 'bg-gray-700 border-gray-600 text-white' 
                           : 'bg-white border-gray-300 text-gray-900'
@@ -522,7 +501,7 @@ export default function BitcoinPage() {
                     <input
                       type="time"
                       name="time"
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm ${
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-sm ${
                         themeMode === 'dark' 
                           ? 'bg-gray-700 border-gray-600 text-white' 
                           : 'bg-white border-gray-300 text-gray-900'
@@ -539,9 +518,9 @@ export default function BitcoinPage() {
             <button
               type="submit"
               onClick={handleGenerate}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-green-500/25"
+              className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-black font-bold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] shadow-lg shadow-yellow-500/25"
             >
-              🧾 Generate Bitcoin.com Receipt
+              🧾 Generate Bybit Receipt
             </button>
           </form>
         </div>
@@ -582,15 +561,15 @@ export default function BitcoinPage() {
           <div className="min-h-[500px] flex items-center justify-center">
             {isGenerated ? (
               <div ref={receiptRef} className="w-full flex justify-center">
-                <BitcoinReceipt data={getReceiptData()} themeMode={themeMode} />
+                <BybitReceipt data={getReceiptData()} themeMode={themeMode} />
               </div>
             ) : (
               <div className={`text-center ${themeMode === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                 <p className="text-5xl mb-3">🧾</p>
-                <p className="text-sm font-medium">No Bitcoin.com Receipt Generated</p>
+                <p className="text-sm font-medium">No Bybit Receipt Generated</p>
                 <p className="text-xs mt-1">Fill in the form and click Generate</p>
                 <p className={`text-xs mt-4 ${themeMode === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
-                  Platform: <span className="font-medium">Bitcoin.com</span>
+                  Platform: <span className="font-medium">Bybit</span>
                 </p>
                 <p className={`text-xs ${themeMode === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
                   Mode: <span className="font-medium capitalize">{formData.transactionMode}</span>

@@ -1,12 +1,23 @@
 'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Users, Bot, Receipt, 
-  Menu, X, ChevronLeft, ChevronRight, ShieldCheck,
-  Wallet, FileText, Coins
+  LayoutDashboard, 
+  Users, 
+  Bot, 
+  Receipt, 
+  Menu, 
+  X, 
+  ChevronLeft, 
+  ChevronRight, 
+  ShieldCheck,
+  Wallet,
+  FileText,
+  Send,
+  BarChart3
 } from 'lucide-react';
 
 const menuItems = [
@@ -26,10 +37,16 @@ const menuItems = [
     description: 'All Platforms'
   },
   { 
-    name: 'Binance', 
-    icon: Coins, 
-    href: '/admin/crypto-receipts/binance',
-    description: 'Binance Receipts'
+    name: 'Telegram Bot', 
+    icon: Send, 
+    href: '/admin/telegram-bot',
+    description: 'Auto Notifications'
+  },
+  { 
+    name: 'Bot Analytics', 
+    icon: BarChart3, 
+    href: '/admin/telegram-bot/analytics',
+    description: 'Performance & Stats'
   },
   { name: 'Approvals', icon: ShieldCheck, href: '/admin/approvals' },
 ];
