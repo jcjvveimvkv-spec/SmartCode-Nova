@@ -17,7 +17,8 @@ import {
   Wallet,
   FileText,
   Send,
-  BarChart3
+  BarChart3,
+  Image // Added for Screenshot Generator
 } from 'lucide-react';
 
 const menuItems = [
@@ -47,6 +48,12 @@ const menuItems = [
     icon: BarChart3, 
     href: '/admin/telegram-bot/analytics',
     description: 'Performance & Stats'
+  },
+  { 
+    name: 'Screenshot Generator', 
+    icon: Image, 
+    href: '/admin/telegram-screenshot',
+    description: 'AI Telegram Screenshots'
   },
   { name: 'Approvals', icon: ShieldCheck, href: '/admin/approvals' },
 ];
