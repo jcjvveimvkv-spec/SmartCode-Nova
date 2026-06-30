@@ -269,7 +269,6 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           overflow: hidden;
           box-shadow: 0 20px 60px rgba(0,0,0,0.8);
         }
-        /* Header - Shows the recipient (user) name */
         .telegram-header {
           background: ${colors.headerBg};
           padding: 12px 16px;
@@ -327,7 +326,6 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
         }
         .header-actions i { cursor: pointer; }
         .header-actions i:hover { color: ${colors.text}; }
-        /* Chat Body */
         .telegram-body {
           padding: 12px 16px 8px;
           min-height: 400px;
@@ -350,7 +348,6 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           padding: 4px 12px;
           border-radius: 6px;
         }
-        /* Messages */
         .message {
           display: flex;
           margin-bottom: 4px;
@@ -360,9 +357,7 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        /* Sender (SmartCodeNova) - Right side */
         .message.sent { justify-content: flex-end; }
-        /* Recipient (User) - Left side */
         .message.received { justify-content: flex-start; }
         .bubble {
           max-width: 78%;
@@ -373,13 +368,11 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           word-wrap: break-word;
           position: relative;
         }
-        /* Sender bubble (SmartCodeNova) - Blue, right side */
         .bubble.sent-bubble {
           background: ${colors.senderBubble};
           color: ${colors.senderText};
           border-bottom-right-radius: 4px;
         }
-        /* Recipient bubble (User) - Gray, left side */
         .bubble.received-bubble {
           background: ${colors.recipientBubble};
           color: ${colors.recipientText};
@@ -412,13 +405,11 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           height: 100%;
           object-fit: cover;
         }
-        /* Sender avatar (SmartCodeNova logo) - Right side */
         .avatar-small.sender-avatar {
           background: ${colors.senderAvatarBg};
           margin-left: 8px;
           order: 1;
         }
-        /* Recipient avatar (User) - Left side */
         .avatar-small.recipient-avatar {
           background: ${colors.recipientAvatarBg};
           margin-right: 8px;
@@ -432,7 +423,6 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           padding: 4px 8px 8px 0;
           letter-spacing: 0.5px;
         }
-        /* Reply Bar */
         .reply-bar {
           padding: 8px 12px 12px;
           background: ${colors.bg};
@@ -466,7 +456,6 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
         .reply-bar .send-btn { color: ${colors.onlineColor}; }
         .reply-bar .send-btn:hover { color: #81d4fa; }
         .reply-bar .emoji-btn:hover { color: ${colors.text}; }
-        /* Footer */
         .footer {
           padding: 12px 16px;
           background: ${colors.headerBg};
@@ -481,6 +470,12 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           color: #6366f1;
           font-weight: 500;
         }
+        .logo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
+        }
         .theme-toggle {
           position: fixed;
           bottom: 20px;
@@ -494,17 +489,11 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           font-size: 12px;
           z-index: 100;
         }
-        .logo-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 50%;
-        }
       </style>
     </head>
     <body>
       <div class="telegram-container" id="screenshot">
-        <!-- Header - Shows the USER (recipient) name -->
+        <!-- Header -->
         <div class="telegram-header">
           <button class="back-btn"><i class="fas fa-arrow-left"></i></button>
           <div class="avatar-group">
@@ -525,7 +514,7 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
         <div class="telegram-body">
           <div class="date-divider"><span>Today</span></div>
 
-          <!-- SENDER: SmartCodeNova sends message (RIGHT side) -->
+          <!-- SENDER: SmartCodeNova sends message -->
           <div class="message sent">
             <div class="bubble sent-bubble">
               ${data.botResponse}
@@ -536,7 +525,7 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
             </div>
           </div>
 
-          <!-- RECIPIENT: User replies (LEFT side) -->
+          <!-- RECIPIENT: User replies -->
           <div class="message received">
             <div class="avatar-small recipient-avatar">${userInitial}</div>
             <div class="bubble received-bubble">
@@ -545,7 +534,7 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
             </div>
           </div>
 
-          <!-- SENDER: SmartCodeNova replies (RIGHT side) -->
+          <!-- SENDER: SmartCodeNova replies -->
           <div class="message sent">
             <div class="bubble sent-bubble">
               ${data.botResponse}
@@ -662,4 +651,81 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
     </body>
     </html>
   `;
+}
+
+// NEW: Generate screenshot image using Next.js API
+export async function generateScreenshotImage(testimonial: any): Promise<string | null> {
+  try {
+    const response = await fetch('/api/telegram/generate-screenshot-image', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ testimonial }),
+    });
+
+    if (!response.ok) {
+      console.error('Screenshot generation failed:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.imageUrl || null;
+  } catch (error) {
+    console.error('Error generating screenshot:', error);
+    return null;
+  }
+}
+
+// NEW: Generate a random testimonial and return as formatted message
+export function generateTestimonialMessage(): string {
+  const testimonial = generateTestimonial();
+  const timestamp = testimonial.timestamp;
+  
+  return `🗣️ NEW TESTIMONIAL SHARED 🗣️
+━━━━━━━━━━━━━━━━━━
+👤 ${testimonial.name}
+🌍 ${testimonial.country}
+🆔 User ID: ${testimonial.userId}
+
+💬 "${testimonial.message}"
+
+🤖 SmartCodeNova: "${testimonial.botResponse}"
+━━━━━━━━━━━━━━━━━━
+📅 ${timestamp}
+
+📝 Share your experience in the group or DM us!`;
+}
+
+// NEW: Generate a random quote and return as formatted message
+export function generateQuoteMessage(): string {
+  const quotes = [
+    "💡 \"The best time to invest was yesterday. The next best time is now.\"",
+    "💰 \"Wealth is not about having a lot of money; it's about having a lot of options.\"",
+    "📈 \"Crypto is not just about money; it's about freedom.\"",
+    "🚀 \"The future belongs to those who believe in the beauty of their dreams.\"",
+    "💪 \"Success is not final, failure is not fatal: it is the courage to continue that counts.\"",
+    "🌟 \"The only way to do great work is to love what you do.\"",
+    "🔥 \"In the middle of difficulty lies opportunity.\"",
+    "🎯 \"The secret of getting ahead is getting started.\"",
+    "💎 \"Believe you can and you're halfway there.\"",
+    "🦅 \"The best way to predict the future is to create it.\"",
+  ];
+  
+  const quote = getRandom(quotes);
+  const timestamp = new Date().toLocaleString('en-US', { 
+    month: 'short', 
+    day: 'numeric', 
+    year: 'numeric',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+  
+  return `💬 INSPIRATION FOR TODAY 💬
+━━━━━━━━━━━━━━━━━━
+${quote}
+━━━━━━━━━━━━━━━━━━
+📅 ${timestamp}
+
+🌟 SmartCodeNova - Building wealth together!`;
 }
