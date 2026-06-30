@@ -5,15 +5,8 @@ export async function POST(request: Request) {
   try {
     console.log('🔵 Test API called');
     
-    // Parse request body
-    let body = {};
-    try {
-      body = await request.json();
-    } catch (e) {
-      console.log('No JSON body, using defaults');
-    }
-    
-    const type = (body as any)?.type || 'main';
+    const body = await request.json().catch(() => ({}));
+    const type = body.type || 'main';
     
     // Generate a test message
     const timestamp = new Date().toLocaleString('en-US', { 
@@ -34,28 +27,75 @@ export async function POST(request: Request) {
       message = `📥 NEW DEPOSIT DETECTED 🚨\n━━━━━━━━━━━━━━━━━━\n💰 Amount: ${amount} USDT\n🌐 Network: BEP20 (BSC)\n👤 From: 0x8f4e...7a3b\n🔒 Confirmations: 6/6 ✅\n⚡ Status: Completed\n━━━━━━━━━━━━━━━━━━\n🕐 ${timestamp}`;
     }
 
-    // Log the message
     console.log('🟡 Message generated:', message.substring(0, 100) + '...');
 
-    // Always return a success response with the message
-    // This allows testing even if the Edge Function is not working
+    // Try to call the Edge Function
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const cronSecret = process.env.TELEGRAM_CRON_SECRET;
+
+    if (supabaseUrl && cronSecret) {
+      try {
+        const edgeFunctionUrl = `${supabaseUrl}/functions/v1/telegram-bot?secret=${cronSecret}`;
+        console.log('🟡 Calling Edge Function:', edgeFunctionUrl);
+
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            testMessage: message,
+            testType: type,
+            isTest: true,
+          }),
+        });
+
+        const data = await response.json();
+        console.log('🟡 Edge Function Response:', data);
+
+        if (response.ok && data.success) {
+          return NextResponse.json({
+            success: true,
+            message: 'Test message sent successfully',
+            data: {
+              type: type,
+              formattedMessage: message,
+              edgeResponse: data,
+            },
+          });
+        } else if (data.message && data.message.includes('minutes since last message')) {
+          return NextResponse.json({
+            success: true,
+            message: 'Test message generated (Edge Function rate-limited)',
+            data: {
+              type: type,
+              formattedMessage: message,
+              note: 'The Edge Function is working but rate-limited. Wait for the interval to pass.',
+              edgeResponse: data,
+            },
+          });
+        }
+      } catch (edgeError) {
+        console.log('⚠️ Edge function call failed:', edgeError);
+      }
+    }
+
+    // Fallback response
     return NextResponse.json({
       success: true,
-      message: 'Test message generated successfully',
+      message: 'Test message generated (Edge Function not available)',
       data: {
         type: type,
         formattedMessage: message,
-        note: 'Message generated. Check your Telegram group if Edge Function is active.',
-        timestamp: timestamp,
+        note: 'Check your Telegram group - message may not have been sent',
       },
     });
-    
   } catch (error: any) {
     console.error('🔴 Test API error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        message: error?.message || 'Failed to generate test message',
+        message: error?.message || 'Failed to send test message',
         error: error?.message 
       },
       { status: 500 }

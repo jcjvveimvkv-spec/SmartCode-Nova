@@ -49,11 +49,6 @@ const languageMessages = {
       "Just withdrew 1,500 USDT. Process was smooth and fast! ✅",
       "The transparency of SmartCodeNova is unmatched. I can see every trade clearly. 👀",
       "NOVA-4 bot is a game changer! 30% return in 14 days! 🚀",
-      "I've recommended SmartCodeNova to all my friends. They're all seeing great results! 🌟",
-      "The daily settlement feature is amazing. I wake up to profits every morning! ☀️",
-      "I started with just $100 and now I'm at $2,500. Thank you SmartCodeNova! 🙏",
-      "Finally a platform that actually delivers what it promises. 10/10! ⭐",
-      "The NOVA-3 bot is my favorite. 15% return in 7 days is incredible! 🔥",
     ],
     botResponses: [
       "Thank you for sharing your experience! We're glad to have you in our community. 🙌",
@@ -62,7 +57,6 @@ const languageMessages = {
       "Thank you for trusting SmartCodeNova! We're here to help you grow. 🤝",
       "We're thrilled to hear about your success! Keep it up! 💎",
       "Your feedback motivates us to keep improving! Thank you! 🙏",
-      "We're honored to have you as part of our family! 🌟",
     ]
   },
   spanish: {
@@ -73,10 +67,6 @@ const languageMessages = {
       "Al principio era escéptico, pero SmartCodeNova me demostró lo contrario. ¡Mi inversión de $500 ahora es $850! 💎",
       "La mejor plataforma de trading que he usado. ¡El soporte al cliente es increíble! 🙌",
       "El bot NOVA-2 me dio un 10% de ganancia en 4 días. ¡Estoy muy feliz con esta plataforma! 🎉",
-      "SmartCodeNova es la única plataforma en la que confío con mi cripto. 100% confiable. 🔒",
-      "Acabo de retirar 1,500 USDT. ¡El proceso fue rápido y sin problemas! ✅",
-      "La transparencia de SmartCodeNova es incomparable. ¡Puedo ver cada operación claramente! 👀",
-      "¡El bot NOVA-4 cambia el juego! ¡30% de retorno en 14 días! 🚀",
     ],
     botResponses: [
       "¡Gracias por compartir tu experiencia! Nos alegra tenerte en nuestra comunidad. 🙌",
@@ -84,7 +74,6 @@ const languageMessages = {
       "¡Felicitaciones por tu éxito! Tu viaje con nosotros apenas comienza. 🚀",
       "¡Gracias por confiar en SmartCodeNova! Estamos aquí para ayudarte a crecer. 🤝",
       "¡Nos encanta escuchar sobre tu éxito! ¡Sigue así! 💎",
-      "¡Tus comentarios nos motivan a seguir mejorando! ¡Gracias! 🙏",
     ]
   },
   arabic: {
@@ -95,8 +84,6 @@ const languageMessages = {
       "كنت متشككًا في البداية، لكن SmartCodeNova أثبت خطأ ظني. استثماري البالغ $500 أصبح الآن $850! 💎",
       "أفضل منصة تداول استخدمتها على الإطلاق. دعم العملاء مذهل! 🙌",
       "روبوت NOVA-2 حقق لي ربحًا بنسبة 10% في 4 أيام. أنا سعيد جدًا بهذه المنصة! 🎉",
-      "SmartCodeNova هي المنصة الوحيدة التي أثق بها مع عملاتي المشفرة. موثوقة 100%. 🔒",
-      "لقد سحبت للتو 1,500 USDT. كانت العملية سلسة وسريعة! ✅",
     ],
     botResponses: [
       "شكرًا لك على مشاركة تجربتك! نحن سعداء بوجودك في مجتمعنا. 🙌",
@@ -114,8 +101,6 @@ const languageMessages = {
       "J'étais sceptique au début, mais SmartCodeNova m'a prouvé le contraire. Mon investissement de $500 est maintenant $850! 💎",
       "La meilleure plateforme de trading que j'ai utilisée. Le service client est incroyable! 🙌",
       "Le bot NOVA-2 m'a fait gagner 10% en 4 jours. Je suis tellement content de cette plateforme! 🎉",
-      "SmartCodeNova est la seule plateforme en qui j'ai confiance avec ma crypto. 100% fiable. 🔒",
-      "Je viens de retirer 1,500 USDT. Le processus était fluide et rapide! ✅",
     ],
     botResponses: [
       "Merci de partager votre expérience! Nous sommes ravis de vous avoir dans notre communauté. 🙌",
@@ -195,11 +180,8 @@ export function generateTestimonial(): TestimonialData {
 }
 
 export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'light' = 'dark'): string {
-  const userInitial = data.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-  
-  // SmartCodeNova logo URL
+  const userInitial = data.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
   const logoUrl = 'https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/logo/logo.png';
-  const senderName = 'SmartCodeNova';
 
   // Theme colors
   const colors = theme === 'dark' ? {
@@ -248,7 +230,7 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Telegram Chat - ${data.name}</title>
+      <title>Telegram Chat</title>
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -476,19 +458,6 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           object-fit: cover;
           border-radius: 50%;
         }
-        .theme-toggle {
-          position: fixed;
-          bottom: 20px;
-          right: 20px;
-          padding: 8px 16px;
-          background: #6366f1;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          cursor: pointer;
-          font-size: 12px;
-          z-index: 100;
-        }
       </style>
     </head>
     <body>
@@ -566,166 +535,7 @@ export function generateTelegramHTML(data: TestimonialData, theme: 'dark' | 'lig
           </div>
         </div>
       </div>
-
-      <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
-
-      <script>
-        let currentTheme = 'dark';
-        function toggleTheme() {
-          currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-          const container = document.getElementById('screenshot');
-          
-          const colors = currentTheme === 'dark' ? {
-            bg: '#17212b',
-            headerBg: '#1f2a36',
-            border: '#2b3a4a',
-            text: '#ffffff',
-            textSecondary: '#7d8b9b',
-            senderBubble: '#2b5278',
-            senderText: '#ffffff',
-            recipientBubble: '#1f2a36',
-            recipientText: '#e8edf3',
-            replyBg: '#1f2a36',
-            replyText: '#ffffff',
-            footerBg: '#17212b',
-            footerText: '#7d8b9b',
-            onlineColor: '#4fc3f7',
-            inputBg: '#1f2a36',
-            seenColor: '#4fc3f7',
-            senderAvatarBg: 'transparent',
-            recipientAvatarBg: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
-          } : {
-            bg: '#e8edf3',
-            headerBg: '#ffffff',
-            border: '#d5dce3',
-            text: '#000000',
-            textSecondary: '#6b7280',
-            senderBubble: '#0084ff',
-            senderText: '#ffffff',
-            recipientBubble: '#ffffff',
-            recipientText: '#1a1a1a',
-            replyBg: '#ffffff',
-            replyText: '#1a1a1a',
-            footerBg: '#e8edf3',
-            footerText: '#6b7280',
-            onlineColor: '#4fc3f7',
-            inputBg: '#f0f0f0',
-            seenColor: '#4fc3f7',
-            senderAvatarBg: 'transparent',
-            recipientAvatarBg: 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
-          };
-
-          // Apply colors
-          container.style.background = colors.bg;
-          container.querySelector('.telegram-header').style.background = colors.headerBg;
-          container.querySelector('.telegram-header').style.borderBottomColor = colors.border;
-          container.querySelector('.chat-name').style.color = colors.text;
-          container.querySelector('.chat-status').style.color = colors.textSecondary;
-          container.querySelectorAll('.header-actions i').forEach(el => el.style.color = colors.textSecondary);
-          container.querySelector('.back-btn').style.color = colors.textSecondary;
-          container.querySelector('.telegram-body').style.background = colors.bg;
-          container.querySelectorAll('.date-divider span').forEach(el => {
-            el.style.background = colors.headerBg;
-            el.style.color = colors.textSecondary;
-          });
-          container.querySelectorAll('.bubble.received-bubble').forEach(el => {
-            el.style.background = colors.recipientBubble;
-            el.style.color = colors.recipientText;
-          });
-          container.querySelectorAll('.bubble.sent-bubble').forEach(el => {
-            el.style.background = colors.senderBubble;
-            el.style.color = colors.senderText;
-          });
-          container.querySelectorAll('.bubble .time').forEach(el => el.style.color = colors.textSecondary);
-          container.querySelectorAll('.seen-indicator').forEach(el => el.style.color = colors.seenColor);
-          container.querySelector('.reply-bar').style.background = colors.bg;
-          container.querySelector('.reply-bar').style.borderTopColor = colors.border;
-          container.querySelector('.reply-bar input').style.background = colors.inputBg;
-          container.querySelector('.reply-bar input').style.color = colors.replyText;
-          container.querySelectorAll('.reply-bar .emoji-btn').forEach(el => el.style.color = colors.textSecondary);
-          container.querySelector('.footer').style.background = colors.headerBg;
-          container.querySelector('.footer').style.borderTopColor = colors.border;
-          container.querySelector('.footer-text').style.color = colors.footerText;
-        }
-      </script>
     </body>
     </html>
   `;
-}
-
-// NEW: Generate screenshot image using Next.js API
-export async function generateScreenshotImage(testimonial: any): Promise<string | null> {
-  try {
-    const response = await fetch('/api/telegram/generate-screenshot-image', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ testimonial }),
-    });
-
-    if (!response.ok) {
-      console.error('Screenshot generation failed:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    return data.imageUrl || null;
-  } catch (error) {
-    console.error('Error generating screenshot:', error);
-    return null;
-  }
-}
-
-// NEW: Generate a random testimonial and return as formatted message
-export function generateTestimonialMessage(): string {
-  const testimonial = generateTestimonial();
-  const timestamp = testimonial.timestamp;
-  
-  return `🗣️ NEW TESTIMONIAL SHARED 🗣️
-━━━━━━━━━━━━━━━━━━
-👤 ${testimonial.name}
-🌍 ${testimonial.country}
-🆔 User ID: ${testimonial.userId}
-
-💬 "${testimonial.message}"
-
-🤖 SmartCodeNova: "${testimonial.botResponse}"
-━━━━━━━━━━━━━━━━━━
-📅 ${timestamp}
-
-📝 Share your experience in the group or DM us!`;
-}
-
-// NEW: Generate a random quote and return as formatted message
-export function generateQuoteMessage(): string {
-  const quotes = [
-    "💡 \"The best time to invest was yesterday. The next best time is now.\"",
-    "💰 \"Wealth is not about having a lot of money; it's about having a lot of options.\"",
-    "📈 \"Crypto is not just about money; it's about freedom.\"",
-    "🚀 \"The future belongs to those who believe in the beauty of their dreams.\"",
-    "💪 \"Success is not final, failure is not fatal: it is the courage to continue that counts.\"",
-    "🌟 \"The only way to do great work is to love what you do.\"",
-    "🔥 \"In the middle of difficulty lies opportunity.\"",
-    "🎯 \"The secret of getting ahead is getting started.\"",
-    "💎 \"Believe you can and you're halfway there.\"",
-    "🦅 \"The best way to predict the future is to create it.\"",
-  ];
-  
-  const quote = getRandom(quotes);
-  const timestamp = new Date().toLocaleString('en-US', { 
-    month: 'short', 
-    day: 'numeric', 
-    year: 'numeric',
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-  
-  return `💬 INSPIRATION FOR TODAY 💬
-━━━━━━━━━━━━━━━━━━
-${quote}
-━━━━━━━━━━━━━━━━━━
-📅 ${timestamp}
-
-🌟 SmartCodeNova - Building wealth together!`;
 }

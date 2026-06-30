@@ -16,41 +16,17 @@ export async function POST(request: Request) {
 
     // Generate HTML for the screenshot
     const html = generateTelegramHTML(testimonial);
-    
-    // Dynamic import puppeteer
-    const puppeteer = await import('puppeteer');
-    
-    // Launch browser
-    const browser = await puppeteer.default.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    
-    const page = await browser.newPage();
-    await page.setViewport({ width: 420, height: 650 });
-    
-    // Set content and wait for it to load
-    await page.setContent(html, { waitUntil: 'networkidle0' as any });
-    
-    // Take screenshot - fix: use the correct method signature
-    const screenshotBuffer = await (page as any).screenshot({
-      type: 'png',
-      fullPage: true,
-    });
-    
-    await browser.close();
 
-    // Convert to base64
-    const base64Image = `data:image/png;base64,${screenshotBuffer.toString('base64')}`;
-
+    // Return the HTML - client will render it with html2canvas
     return NextResponse.json({
       success: true,
-      imageUrl: base64Image,
+      html: html,
+      note: 'Use html2canvas on the client side to render this HTML as an image',
     });
   } catch (error: any) {
-    console.error('Error generating screenshot image:', error);
+    console.error('Error generating screenshot HTML:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to generate screenshot' },
+      { success: false, error: error.message || 'Failed to generate screenshot HTML' },
       { status: 500 }
     );
   }
