@@ -18,7 +18,10 @@ import {
   FileText,
   Send,
   BarChart3,
-  Image // Added for Screenshot Generator
+  Image,
+  Gift,
+  TrendingUp,
+  Tag  // <--- ADDED Tag for Promo Codes
 } from 'lucide-react';
 
 const menuItems = [
@@ -54,6 +57,24 @@ const menuItems = [
     icon: Image, 
     href: '/admin/telegram-screenshot',
     description: 'AI Telegram Screenshots'
+  },
+  { 
+    name: 'Referral System', 
+    icon: Gift, 
+    href: '/admin/referral',
+    description: 'Manage Referrals & Payouts'
+  },
+  { 
+    name: 'Promo Codes',  // <--- NEW ITEM
+    icon: Tag, 
+    href: '/admin/referral/promos',
+    description: 'Create & Manage Promos'
+  },
+  { 
+    name: 'Referral Analytics', 
+    icon: TrendingUp, 
+    href: '/admin/referral/analytics',
+    description: 'Referral Performance'
   },
   { name: 'Approvals', icon: ShieldCheck, href: '/admin/approvals' },
 ];

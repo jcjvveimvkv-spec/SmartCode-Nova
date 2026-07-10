@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script src="//code.jivosite.com/widget/CCCmjzz7Pl" async></script>
+        {/* Jivo script removed - using 2-in-1 WhatsApp+Jivo button instead */}
       </head>
       <body className={`${inter.className} bg-[#0b0e14] text-white dark:bg-[#0b0e14] dark:text-white light:bg-[#f3f4f6] light:text-[#111827] transition-colors duration-300`}>
         <ThemeProvider>

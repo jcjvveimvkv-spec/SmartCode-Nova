@@ -33,46 +33,35 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [unreadReferrals, setUnreadReferrals] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
+  const [pendingBonus, setPendingBonus] = useState(0);
   const [user, setUser] = useState<any>(null);
 
-  // Load unread referral count
   useEffect(() => {
-    loadUnreadCount();
+    getUserAndReferralData();
   }, []);
 
-  const loadUnreadCount = async () => {
+  const getUserAndReferralData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUser(user);
         
-        // Get unread referrals count
         const { data: referrals } = await supabase
           .from('referrals')
-          .select('id')
-          .eq('referrer_id', user.id)
-          .eq('is_read', false);
-
+          .select('*')
+          .eq('referrer_id', user.id);
+        
         if (referrals) {
-          setUnreadReferrals(referrals.length);
+          const pending = referrals.filter(r => r.status === 'pending');
+          setReferralCount(referrals.length);
+          setPendingBonus(pending.length * 7);
         }
       }
     } catch (error) {
-      console.error('Error loading referral count:', error);
+      console.error('Error loading referral data:', error);
     }
   };
-
-  // Listen for auth changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        loadUnreadCount();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   return (
     <>
@@ -118,6 +107,19 @@ export default function DashboardSidebar() {
           </button>
         </div>
 
+        {!isCollapsed && (referralCount > 0 || pendingBonus > 0) && (
+          <div className="mx-4 mt-3 p-3 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Referrals:</span>
+              <span className="text-white font-medium">{referralCount}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Pending Bonus:</span>
+              <span className="text-green-400 font-medium">{pendingBonus} USDT</span>
+            </div>
+          </div>
+        )}
+
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {!isCollapsed && (
             <p className="text-xs uppercase text-[#8e96a3] font-semibold tracking-wider px-4 pt-4 pb-2">Navigation</p>
@@ -125,7 +127,6 @@ export default function DashboardSidebar() {
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href));
-            const isReferralItem = item.name === 'Referral Program';
             
             return (
               <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
@@ -143,10 +144,9 @@ export default function DashboardSidebar() {
                       )}
                     </div>
                   )}
-                  {/* Badge - only shows on Referral Program tab when there are unread referrals */}
-                  {!isCollapsed && isReferralItem && unreadReferrals > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ml-auto">
-                      {unreadReferrals}
+                  {!isCollapsed && item.name === 'Referral Program' && referralCount > 0 && (
+                    <span className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {referralCount}
                     </span>
                   )}
                 </div>

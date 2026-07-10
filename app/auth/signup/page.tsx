@@ -1,20 +1,23 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, CheckCircle2, XCircle, Calendar } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { notifyAdminNewSignup } from '@/app/lib/notifications'; // <--- NEW IMPORT
+import { notifyAdminNewSignup, notifyUserWelcome, notifyUserReferralBonus } from '@/app/lib/notifications';
 
-// 1. Dynamically import Select with NO SSR (This fixes the hydration error)
+// Dynamically import Select with NO SSR
 const Select = dynamic(
   () => import('react-select').then(mod => mod.default),
   { ssr: false }
 );
 
-// 2. Full A-Z List of Countries (Restored)
+// ============================================================
+// FULL COUNTRY LIST (A-Z)
+// ============================================================
 const countryOptions = [
   { value: 'Afghanistan', label: 'Afghanistan' },
   { value: 'Albania', label: 'Albania' },
@@ -209,7 +212,7 @@ const countryOptions = [
   { value: 'Zimbabwe', label: 'Zimbabwe' }
 ];
 
-// 3. Custom styling for the country select dropdown
+// Custom styling for the country select dropdown
 const customSelectStyles = {
   control: (base: any, state: any) => ({
     ...base,
@@ -235,13 +238,63 @@ const customSelectStyles = {
   placeholder: (base: any) => ({ ...base, color: '#9ca3af' }),
 };
 
+// ============================================================
+// Helper function to generate referral code
+// ============================================================
+function generateReferralCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 8; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// ============================================================
+// ADMIN SUPABASE CLIENT (bypasses RLS) - WITH ENV FALLBACK
+// ============================================================
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRleHV6cnd5amVjanhrcm5lbWVnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTYyMzc1OSwiZXhwIjoyMDk3MTk5NzU5fQ.joJjQ7kBlmvj8fkyLfSvfRhqTuT-ktR4sH7iArETrg4';
+  return createClient(url, key);
+}
+
 export default function Signup() {
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // Get referral code from URL
+  const referralCode = searchParams.get('ref');
+
+  // ============================================================
+  // TRACK REFERRAL CLICK
+  // ============================================================
+  useEffect(() => {
+    const trackClick = async () => {
+      const ref = searchParams.get('ref');
+      if (ref) {
+        try {
+          await fetch('/api/referral', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              action: 'track-click',
+              referral_code: ref 
+            }),
+          });
+          console.log('✅ Referral click tracked for code:', ref);
+        } catch (error) {
+          console.error('Error tracking referral click:', error);
+        }
+      }
+    };
+    trackClick();
+  }, [searchParams]);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -291,7 +344,7 @@ export default function Signup() {
 
   const triggerCalendar = () => {
     if (dateInputRef.current) {
-      dateInputRef.current.showPicker(); // Forces the calendar to pop up
+      dateInputRef.current.showPicker();
     }
   };
 
@@ -300,20 +353,45 @@ export default function Signup() {
     if (loading) return;
     setError('');
 
+    // ============================================================
+    // VALIDATE COUNTRY IS SELECTED
+    // ============================================================
+    if (!formData.country || !formData.country.value) {
+      setError('Please select a country.');
+      return;
+    }
+
+    // Validate emails match
     if (formData.email !== formData.confirmEmail) {
       setError('Emails do not match.');
       return;
     }
+
+    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
 
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
 
+    // ============================================================
+    // 1. CREATE USER IN SUPABASE AUTH
+    // ============================================================
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
+      options: {
+        data: {
+          full_name: formData.fullName,
+        },
+      },
     });
 
     if (signUpError) {
@@ -323,32 +401,295 @@ export default function Signup() {
         setError(signUpError.message);
       }
       setLoading(false);
-    } else if (data.user) {
-      // ✅ Insert into user_balances
-      const { error: dbError } = await supabase.from('user_balances').insert([
-        { 
-          user_id: data.user.id, 
-          funding_balance: 0, 
-          total_profit_usdt: 0,
-          full_name: formData.fullName,
-          state: formData.state,
-          country: formData.country?.value || '',
-          phone: formData.phone,
-          date_of_birth: formData.dob,
-          telegram_username: formData.telegram || null
-        }
-      ]);
+      return;
+    }
 
-      if (dbError) {
-        setError('Profile save failed: ' + dbError.message);
-        setLoading(false);
-      } else {
-        // ✅ NOTIFY ADMIN ABOUT NEW SIGNUP
-        await notifyAdminNewSignup(formData.email, formData.fullName);
+    if (!data.user) {
+      setError('Failed to create account. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    const newUserId = data.user.id;
+
+    // ============================================================
+    // 2. INSERT INTO USER_BALANCES (WITH EMAIL)
+    // ============================================================
+    const { error: dbError } = await supabase.from('user_balances').insert([
+      { 
+        user_id: newUserId,
+        funding_balance: 0, 
+        total_profit_usdt: 0,
+        full_name: formData.fullName,
+        state: formData.state,
+        country: formData.country?.value || '',
+        phone: formData.phone,
+        date_of_birth: formData.dob,
+        telegram_username: formData.telegram || null,
+        email: formData.email
+      }
+    ]);
+
+    if (dbError) {
+      setError('Profile save failed: ' + dbError.message);
+      setLoading(false);
+      return;
+    }
+
+    // ============================================================
+    // 3. CREATE REFERRAL CODE FOR THE NEW USER (ALWAYS)
+    // ============================================================
+    let newUserReferralCode = '';
+    let referralCodeCreated = false;
+
+    try {
+      let isUnique = false;
+      let attempts = 0;
+      
+      while (!isUnique && attempts < 10) {
+        newUserReferralCode = generateReferralCode();
+        attempts++;
         
-        router.push('/dashboard');
+        const { data: existingCode, error: checkError } = await getSupabaseAdmin()
+          .from('user_referral_codes')
+          .select('code')
+          .eq('code', newUserReferralCode)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error('Error checking code uniqueness:', checkError);
+          break;
+        }
+        
+        if (!existingCode) {
+          isUnique = true;
+        }
+      }
+
+      if (!isUnique) {
+        newUserReferralCode = 'USR' + Date.now().toString(36).toUpperCase();
+      }
+
+      const { data: newCodeData, error: codeError } = await getSupabaseAdmin()
+        .from('user_referral_codes')
+        .insert({
+          user_id: newUserId,
+          code: newUserReferralCode,
+          total_clicks: 0,
+          total_signups: 0,
+          total_earned_usdt: 0,
+          share_count: 0
+        })
+        .select()
+        .single();
+
+      if (codeError) {
+        console.error('❌ Error creating referral code for new user:', codeError);
+      } else {
+        referralCodeCreated = true;
+        console.log('✅ Referral code created for new user:', newUserReferralCode);
+        
+        // ============================================================
+        // NEW: SEND WELCOME NOTIFICATION
+        // ============================================================
+        try {
+          await notifyUserWelcome(
+            formData.email,
+            formData.fullName,
+            newUserReferralCode,
+            newUserId
+          );
+          console.log('✅ Welcome notification sent');
+        } catch (welcomeError) {
+          console.error('❌ Welcome notification error:', welcomeError);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Unexpected error creating referral code:', err);
+    }
+
+    // ============================================================
+    // 4. RECORD REFERRAL (IF A REFERRAL CODE WAS USED)
+    // ============================================================
+    let referralId: number | null = null;
+
+    if (referralCode) {
+      console.log('🔍 Referral code used during signup:', referralCode);
+      
+      try {
+        const { data: referrerData, error: referrerError } = await getSupabaseAdmin()
+          .from('user_referral_codes')
+          .select('user_id')
+          .eq('code', referralCode)
+          .single();
+
+        if (referrerError) {
+          console.log('⚠️ Referral code not found:', referralCode);
+        } else if (referrerData) {
+          console.log('✅ Referrer found:', referrerData.user_id);
+          
+          const { data: existingReferral, error: checkRefError } = await getSupabaseAdmin()
+            .from('referrals')
+            .select('id')
+            .eq('referrer_id', referrerData.user_id)
+            .eq('referred_user_id', newUserId)
+            .maybeSingle();
+
+          if (checkRefError) {
+            console.error('Error checking existing referral:', checkRefError);
+          }
+
+          if (existingReferral) {
+            console.log('⚠️ Referral already exists, skipping duplicate');
+            referralId = existingReferral.id;
+          } else {
+            const { data: referralRecord, error: referralInsertError } = await getSupabaseAdmin()
+              .from('referrals')
+              .insert({
+                referrer_id: referrerData.user_id,
+                referred_user_id: newUserId,
+                referral_code: referralCode,
+                status: 'pending',
+                amount_usdt: 7.00,
+                is_read: false,
+              })
+              .select()
+              .single();
+
+            if (referralInsertError) {
+              console.error('❌ Error creating referral record:', referralInsertError);
+            } else {
+              referralId = referralRecord.id;
+              console.log('✅ Referral record created for code:', referralCode);
+              
+              // 4a. UPDATE REFERRER'S SIGNUP COUNT
+              const { data: currentCode, error: fetchCodeError } = await getSupabaseAdmin()
+                .from('user_referral_codes')
+                .select('total_signups')
+                .eq('code', referralCode)
+                .single();
+
+              if (fetchCodeError) {
+                console.error('Error fetching current signup count:', fetchCodeError);
+              } else if (currentCode) {
+                const newCount = (currentCode.total_signups || 0) + 1;
+                await getSupabaseAdmin()
+                  .from('user_referral_codes')
+                  .update({ total_signups: newCount })
+                  .eq('code', referralCode);
+                console.log('✅ Signup count updated to:', newCount);
+              }
+
+              // 4b. CREDIT THE REFERRER'S BONUS
+              const { data: referrerBalance, error: balanceError } = await getSupabaseAdmin()
+                .from('user_balances')
+                .select('bonus_usdt, email, full_name')
+                .eq('user_id', referrerData.user_id)
+                .single();
+
+              if (balanceError) {
+                console.error('Error fetching referrer balance:', balanceError);
+              } else {
+                const currentBonus = referrerBalance?.bonus_usdt || 0;
+                const newBonus = currentBonus + 7;
+
+                await getSupabaseAdmin()
+                  .from('user_balances')
+                  .update({ 
+                    bonus_usdt: newBonus,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('user_id', referrerData.user_id);
+
+                console.log('✅ Referrer bonus credited: 7 USDT');
+                
+                // Update referral status to paid
+                await getSupabaseAdmin()
+                  .from('referrals')
+                  .update({ 
+                    status: 'paid', 
+                    paid_at: new Date().toISOString()
+                  })
+                  .eq('id', referralId);
+
+                // Create payout record
+                const { data: existingPayout } = await getSupabaseAdmin()
+                  .from('referral_payouts')
+                  .select('*')
+                  .eq('user_id', referrerData.user_id)
+                  .eq('referral_id', referralId)
+                  .maybeSingle();
+
+                if (!existingPayout) {
+                  await getSupabaseAdmin()
+                    .from('referral_payouts')
+                    .insert({
+                      user_id: referrerData.user_id,
+                      referral_id: referralId,
+                      amount_usdt: 7.00,
+                      status: 'approved',
+                      paid_at: new Date().toISOString(),
+                    });
+                  console.log('✅ Payout record created');
+                }
+
+                // ============================================================
+                // NEW: SEND REFERRAL BONUS NOTIFICATION
+                // ============================================================
+                try {
+                  const { data: totalRefs, count } = await getSupabaseAdmin()
+                    .from('referrals')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('referrer_id', referrerData.user_id);
+
+                  await notifyUserReferralBonus(
+                    referrerBalance?.email || '',
+                    referrerBalance?.full_name || 'User',
+                    formData.email,
+                    7,
+                    count || 0,
+                    referrerData.user_id
+                  );
+                  console.log('✅ Referral bonus notification sent');
+                } catch (bonusError) {
+                  console.error('❌ Referral bonus notification error:', bonusError);
+                }
+
+                // Create in-app notification for referrer
+                try {
+                  await getSupabaseAdmin()
+                    .from('user_notifications')
+                    .insert({
+                      user_id: referrerData.user_id,
+                      type: 'referral_bonus',
+                      title: '🎉 New Referral!',
+                      message: `${formData.fullName} signed up using your referral link! You earned 7 USDT.`,
+                      data: {
+                        referred_user: formData.email,
+                        bonus_amount: 7,
+                        referral_code: referralCode,
+                      },
+                      is_read: false,
+                    });
+                  console.log('✅ In-app notification created');
+                } catch (inAppError) {
+                  console.error('Error creating in-app notification:', inAppError);
+                }
+              }
+            }
+          }
+        }
+      } catch (refError) {
+        console.error('❌ Error processing referral:', refError);
       }
     }
+
+    // ============================================================
+    // 5. NOTIFY ADMIN ABOUT NEW SIGNUP
+    // ============================================================
+    await notifyAdminNewSignup(formData.email, formData.fullName);
+    
+    router.push('/dashboard');
   };
 
   return (
@@ -359,16 +700,24 @@ export default function Signup() {
         className="w-full max-w-2xl bg-[#1a1a3e] rounded-2xl border border-blue-500/20 p-8 shadow-2xl"
       >
         
-        {/* <--- LOGO SECTION REMOVED PER YOUR REQUEST ---> */}
-        
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">Create Your Account</h2>
           <p className="text-gray-400">Fill in your details to start trading with SmartCodeNova</p>
+          
+          {referralCode && (
+            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+              <p className="text-green-400 text-sm">
+                🎉 You were referred! You'll both receive a <strong>7 USDT</strong> bonus!
+              </p>
+              <p className="text-gray-500 text-xs mt-1">
+                Referral Code: <span className="font-mono font-bold text-blue-400">{referralCode}</span>
+              </p>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSignup} className="space-y-5">
           
-          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
             <input
@@ -382,7 +731,6 @@ export default function Signup() {
             />
           </div>
 
-          {/* State & Country */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">State *</label>
@@ -393,7 +741,7 @@ export default function Signup() {
                 value={formData.state}
                 onChange={handleChange}
                 className="w-full px-4 py-3 bg-[#0a0a2a] border border-blue-500/20 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                placeholder="Lagos"
+                placeholder="Enter your state"
               />
             </div>
             <div>
@@ -407,11 +755,11 @@ export default function Signup() {
                 onChange={handleCountryChange}
                 className="text-white"
                 classNamePrefix="select"
+                required
               />
             </div>
           </div>
 
-          {/* Phone & Date of Birth */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number *</label>
@@ -422,7 +770,7 @@ export default function Signup() {
                 value={formData.phone}
                 onChange={handleChange}
                 className="w-full px-4 py-3 bg-[#0a0a2a] border border-blue-500/20 rounded-lg text-white focus:outline-none focus:border-blue-500"
-                placeholder="+234 800 000 0000"
+                placeholder="+44 800 000 0000"
               />
             </div>
             <div className="relative">
@@ -448,7 +796,6 @@ export default function Signup() {
             </div>
           </div>
 
-          {/* Telegram */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Telegram Username <span className="text-gray-500 text-xs">(Optional - For bot notifications)</span></label>
             <input
@@ -461,7 +808,6 @@ export default function Signup() {
             />
           </div>
 
-          {/* Email & Confirm Email - Fixed match feature */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Email Address *</label>
@@ -493,7 +839,6 @@ export default function Signup() {
             </div>
           </div>
 
-          {/* Password & Confirm Password - Fixed match feature */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <label className="block text-sm font-medium text-gray-300 mb-2">Password *</label>
@@ -542,14 +887,12 @@ export default function Signup() {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm text-center">
               {error}
             </div>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
