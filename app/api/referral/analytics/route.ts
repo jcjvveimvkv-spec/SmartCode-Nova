@@ -1,19 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// ============================================================
-// ADMIN SUPABASE CLIENT (bypasses RLS)
-// ============================================================
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 // ============================================================
 // GET: Fetch Referral Analytics
@@ -26,9 +12,16 @@ export async function GET(request: NextRequest) {
     console.log('📊 Fetching referral analytics...', { timeRange });
 
     // ============================================================
+    // CREATE SUPABASE ADMIN CLIENT LAZILY
+    // ============================================================
+    console.log('🔐 Creating Supabase admin client for referral analytics...');
+    const supabase = getSupabaseAdmin();
+    console.log('✅ Supabase admin client created');
+
+    // ============================================================
     // 1. Total Referrals
     // ============================================================
-    const { count: totalReferrals, error: totalError } = await supabaseAdmin
+    const { count: totalReferrals, error: totalError } = await supabase
       .from('referrals')
       .select('*', { count: 'exact', head: true });
 
@@ -39,7 +32,7 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // 2. Total Payouts
     // ============================================================
-    const { data: totalPayouts, error: payoutError } = await supabaseAdmin
+    const { data: totalPayouts, error: payoutError } = await supabase
       .from('referral_payouts')
       .select('amount_usdt');
 
@@ -47,12 +40,12 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching payouts:', payoutError);
     }
 
-    const totalPayoutAmount = totalPayouts?.reduce((sum, p) => sum + (p.amount_usdt || 0), 0) || 0;
+    const totalPayoutAmount = totalPayouts?.reduce((sum: number, p: any) => sum + (p.amount_usdt || 0), 0) || 0;
 
     // ============================================================
     // 3. Pending Referrals
     // ============================================================
-    const { count: pendingReferrals, error: pendingError } = await supabaseAdmin
+    const { count: pendingReferrals, error: pendingError } = await supabase
       .from('referrals')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending');
@@ -64,7 +57,7 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // 4. Total Clicks
     // ============================================================
-    const { data: clicks, error: clicksError } = await supabaseAdmin
+    const { data: clicks, error: clicksError } = await supabase
       .from('user_referral_codes')
       .select('total_clicks');
 
@@ -72,12 +65,12 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching clicks:', clicksError);
     }
 
-    const totalClicks = clicks?.reduce((sum, c) => sum + (c.total_clicks || 0), 0) || 0;
+    const totalClicks = clicks?.reduce((sum: number, c: any) => sum + (c.total_clicks || 0), 0) || 0;
 
     // ============================================================
     // 5. Total Signups (from referrals)
     // ============================================================
-    const { data: signups, error: signupsError } = await supabaseAdmin
+    const { data: signups, error: signupsError } = await supabase
       .from('user_referral_codes')
       .select('total_signups');
 
@@ -85,7 +78,7 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching signups:', signupsError);
     }
 
-    const totalSignups = signups?.reduce((sum, s) => sum + (s.total_signups || 0), 0) || 0;
+    const totalSignups = signups?.reduce((sum: number, s: any) => sum + (s.total_signups || 0), 0) || 0;
 
     // ============================================================
     // 6. Conversion Rate
@@ -93,9 +86,9 @@ export async function GET(request: NextRequest) {
     const conversionRate = totalClicks > 0 ? ((totalSignups / totalClicks) * 100).toFixed(1) : 0;
 
     // ============================================================
-    // 7. Paid Referrals Count - FIXED: Handle null
+    // 7. Paid Referrals Count
     // ============================================================
-    const { count: paidReferralsCount, error: paidError } = await supabaseAdmin
+    const { count: paidReferralsCount, error: paidError } = await supabase
       .from('referrals')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'paid');
@@ -104,7 +97,6 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching paid referrals:', paidError);
     }
 
-    // FIX: Ensure paidReferralsCount is a number (default to 0 if null)
     const paidReferrals = paidReferralsCount ?? 0;
 
     // ============================================================
@@ -115,17 +107,17 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // 9. Total Bonus Distributed
     // ============================================================
-    const { data: bonusData } = await supabaseAdmin
+    const { data: bonusData } = await supabase
       .from('user_balances')
       .select('bonus_usdt')
       .not('bonus_usdt', 'is', null);
 
-    const totalBonusDistributed = bonusData?.reduce((sum, b) => sum + (b.bonus_usdt || 0), 0) || 0;
+    const totalBonusDistributed = bonusData?.reduce((sum: number, b: any) => sum + (b.bonus_usdt || 0), 0) || 0;
 
     // ============================================================
     // 10. Promo Code Usage Stats
     // ============================================================
-    const { data: promoUsage, error: promoUsageError } = await supabaseAdmin
+    const { data: promoUsage, error: promoUsageError } = await supabase
       .from('promo_code_usage')
       .select('bonus_amount');
 
@@ -133,13 +125,13 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching promo usage:', promoUsageError);
     }
 
-    const totalPromoBonus = promoUsage?.reduce((sum, p) => sum + (p.bonus_amount || 0), 0) || 0;
+    const totalPromoBonus = promoUsage?.reduce((sum: number, p: any) => sum + (p.bonus_amount || 0), 0) || 0;
     const totalPromoUses = promoUsage?.length || 0;
 
     // ============================================================
     // 11. Monthly Referrals (last 6 months)
     // ============================================================
-    const { data: monthlyData, error: monthlyError } = await supabaseAdmin
+    const { data: monthlyData, error: monthlyError } = await supabase
       .from('referrals')
       .select('created_at')
       .order('created_at', { ascending: true });
@@ -176,7 +168,7 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // 12. Top Referrers
     // ============================================================
-    const { data: referralsData } = await supabaseAdmin
+    const { data: referralsData } = await supabase
       .from('referrals')
       .select('referrer_id, status')
       .eq('status', 'paid');
@@ -195,7 +187,7 @@ export async function GET(request: NextRequest) {
 
     // Get user details
     const referrerUserIds = sortedReferrers.map(s => s.referrer_id);
-    const { data: referrerUsers } = await supabaseAdmin
+    const { data: referrerUsers } = await supabase
       .from('user_balances')
       .select('user_id, email, full_name')
       .in('user_id', referrerUserIds);
@@ -214,7 +206,7 @@ export async function GET(request: NextRequest) {
     // ============================================================
     // 13. Top Clickers
     // ============================================================
-    const { data: topClicks } = await supabaseAdmin
+    const { data: topClicks } = await supabase
       .from('user_referral_codes')
       .select('user_id, total_clicks, code')
       .order('total_clicks', { ascending: false })
@@ -222,7 +214,7 @@ export async function GET(request: NextRequest) {
 
     // Get user details for top clicks
     const clickUserIds = topClicks?.map((c: any) => c.user_id) || [];
-    const { data: clickUsers } = await supabaseAdmin
+    const { data: clickUsers } = await supabase
       .from('user_balances')
       .select('user_id, email, full_name')
       .in('user_id', clickUserIds);
@@ -260,7 +252,7 @@ export async function GET(request: NextRequest) {
         totalBonusDistributed: totalBonusDistributed,
         totalPromoBonus: totalPromoBonus,
         totalPromoUses: totalPromoUses,
-        paidReferrals: paidReferrals, // Now always a number
+        paidReferrals: paidReferrals,
         totalReferrers: totalReferrers,
 
         // Charts
