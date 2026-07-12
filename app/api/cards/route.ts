@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
     try {
@@ -14,9 +9,16 @@ export async function GET(request: NextRequest) {
 
         console.log('📡 GET /api/cards - Params:', { userId, status });
 
-        let query = supabaseAdmin
+        // ============================================================
+        // USE ADMIN CLIENT FOR BYPASSING RLS
+        // ============================================================
+        console.log('🔐 Creating Supabase admin client...');
+        const supabase = getSupabaseAdmin();
+        console.log('✅ Supabase admin client created');
+
+        let query = supabase
             .from('cards')
-            .select('*')  // This selects ALL fields including cvv and card_holder_name
+            .select('*')
             .order('created_at', { ascending: false });
 
         if (userId) {
@@ -37,7 +39,6 @@ export async function GET(request: NextRequest) {
             }, { status: 500 });
         }
 
-        // Log what we're returning
         if (data && data.length > 0) {
             console.log('📊 Sample card data:', {
                 id: data[0].id,
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        console.log(`📊 Found ${data?.length || 0} cards`);
         return NextResponse.json({
             success: true,
             data: data || []

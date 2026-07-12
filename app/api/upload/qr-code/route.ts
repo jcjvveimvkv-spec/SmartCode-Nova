@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
     try {
@@ -26,11 +21,22 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            return NextResponse.json(
+                { success: false, error: 'File too large. Maximum size is 5MB' },
+                { status: 400 }
+            );
+        }
+
         // Generate unique filename
         const timestamp = Date.now();
         const ext = file.name.split('.').pop();
         const fileName = `qr-code-${timestamp}.${ext}`;
         const filePath = `qr-codes/${fileName}`;
+
+        // Create admin client lazily inside the handler
+        const supabase = getSupabaseAdmin();
 
         // Upload to Supabase Storage
         const buffer = Buffer.from(await file.arrayBuffer());
@@ -45,7 +51,7 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('Upload error:', error);
             return NextResponse.json(
-                { success: false, error: 'Failed to upload QR code' },
+                { success: false, error: 'Failed to upload QR code: ' + error.message },
                 { status: 500 }
             );
         }

@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
     try {
@@ -20,8 +15,13 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        // ============================================================
+        // USE ADMIN CLIENT FOR BYPASSING RLS
+        // ============================================================
+        const supabase = getSupabaseAdmin();
+
         // Get card details with user info
-        const { data: card, error: cardError } = await supabaseAdmin
+        const { data: card, error: cardError } = await supabase
             .from('cards')
             .select('*, user_balances!inner(email, full_name, telegram_chat_id)')
             .eq('id', cardId)
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
             updateData.activated_date = new Date().toISOString();
         }
 
-        const { data: updatedCard, error: updateError } = await supabaseAdmin
+        const { data: updatedCard, error: updateError } = await supabase
             .from('cards')
             .update(updateData)
             .eq('id', cardId)
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
         console.log('✅ Card updated:', updatedCard.id, 'New status:', updatedCard.status);
 
-        // Send notification to user
+        // Send notification to user (using regular client for user notifications)
         try {
             const userEmail = card.user_balances?.email;
             const userName = card.user_balances?.full_name || 'User';
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
             }
 
             // In-app notification
-            await supabaseAdmin
+            await supabase
                 .from('notifications')
                 .insert({
                     user_id: card.user_id,
