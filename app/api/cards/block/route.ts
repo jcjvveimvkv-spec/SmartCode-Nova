@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 import { 
     createInAppNotification, 
     getUserTelegramChatId, 
@@ -7,15 +7,12 @@ import {
     sendEmail 
 } from '@/app/lib/notifications';
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { cardId, action } = body;
+
+        console.log('🔒 Block/Unblock request:', { cardId, action });
 
         // Validate required fields
         if (!cardId || !action) {
@@ -32,14 +29,20 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        // ============================================================
+        // USE ADMIN CLIENT FOR BYPASSING RLS
+        // ============================================================
+        const supabase = getSupabaseAdmin();
+
         // Get the card details
-        const { data: card, error: cardError } = await supabaseAdmin
+        const { data: card, error: cardError } = await supabase
             .from('cards')
             .select('*')
             .eq('id', cardId)
             .single();
 
         if (cardError || !card) {
+            console.error('❌ Card not found:', cardError);
             return NextResponse.json({
                 success: false,
                 error: 'Card not found'
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
             updateData.blocked_date = new Date().toISOString();
         }
 
-        const { data: updatedCard, error: updateError } = await supabaseAdmin
+        const { data: updatedCard, error: updateError } = await supabase
             .from('cards')
             .update(updateData)
             .eq('id', cardId)
@@ -80,15 +83,17 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (updateError) {
-            console.error('Error updating card:', updateError);
+            console.error('❌ Update error:', updateError);
             return NextResponse.json({
                 success: false,
-                error: 'Failed to update card'
+                error: 'Failed to update card: ' + updateError.message
             }, { status: 500 });
         }
 
+        console.log('✅ Card updated:', updatedCard.id, 'New status:', updatedCard.status);
+
         // Get user details
-        const { data: user, error: userError } = await supabaseAdmin
+        const { data: user, error: userError } = await supabase
             .from('user_balances')
             .select('email, full_name')
             .eq('user_id', card.user_id)
@@ -110,7 +115,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('Block/Unblock card error:', error);
+        console.error('❌ Block/Unblock card error:', error);
         return NextResponse.json({
             success: false,
             error: error.message || 'Failed to process card'
