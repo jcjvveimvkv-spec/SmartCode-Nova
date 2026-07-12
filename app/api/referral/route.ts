@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('referrals')
-      .select(\
+      .select(`
         *,
         referrer:user_balances!referrals_referrer_id_fkey(
           user_id,
@@ -42,11 +42,11 @@ export async function GET(request: NextRequest) {
           funding_balance,
           bonus_usdt
         )
-      \)
+      `)
       .order('created_at', { ascending: false });
 
     if (userId) {
-      query = query.or(\eferrer_id.eq.\,referred_id.eq.\\);
+      query = query.or(`referrer_id.eq.${userId},referred_id.eq.${userId}`);
     }
 
     const { data: referrals, error } = await query;
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    console.log(\📊 Found \ referrals\);
+    console.log(`📊 Found ${referrals?.length || 0} referrals`);
     return NextResponse.json({
       success: true,
       data: referrals || []
@@ -297,7 +297,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: updatedReferral,
-      message: \Referral \ successfully\
+      message: `Referral ${status} successfully`
     });
 
   } catch (error: any) {
