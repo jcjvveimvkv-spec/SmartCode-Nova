@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { createClient } from '@/app/lib/supabase-server';
 
 // ============================================================
 // CARD UTILITIES
@@ -52,9 +47,6 @@ function formatExpiry(month: number, year: number): string {
     return `${month.toString().padStart(2, '0')}/${year.toString().slice(-2)}`;
 }
 
-// ============================================================
-// GET CARD FEE FROM SETTINGS
-// ============================================================
 function getCardFee(cardType: string, settings: any): number {
     const feeMap: Record<string, string> = {
         master_credit: 'master_credit_fee',
@@ -65,12 +57,10 @@ function getCardFee(cardType: string, settings: any): number {
     const feeKey = feeMap[cardType];
     const fee = settings?.[feeKey];
     
-    // If fee is set in settings, use it, otherwise use defaults
     if (fee !== undefined && fee !== null) {
         return Number(fee);
     }
     
-    // Default fallback values
     const defaults: Record<string, number> = {
         master_credit: 500,
         visa_debit: 300,
@@ -115,7 +105,15 @@ function getCardName(cardType: string): string {
 // ============================================================
 // NOTIFICATION FUNCTIONS
 // ============================================================
-async function sendUserNotifications(email: string, fullName: string, cardName: string, fee: number, cardId: string, userId: string) {
+async function sendUserNotifications(
+    supabase: any,
+    email: string, 
+    fullName: string, 
+    cardName: string, 
+    fee: number, 
+    cardId: string, 
+    userId: string
+) {
     console.log(`📧 Sending user notifications for ${email}...`);
     
     try {
@@ -161,7 +159,7 @@ async function sendUserNotifications(email: string, fullName: string, cardName: 
     try {
         const telegramToken = process.env.TELEGRAM_BOT_TOKEN_NEW;
         if (telegramToken) {
-            const { data: userData } = await supabaseAdmin
+            const { data: userData } = await supabase
                 .from('user_balances')
                 .select('telegram_chat_id')
                 .eq('user_id', userId)
@@ -196,7 +194,7 @@ async function sendUserNotifications(email: string, fullName: string, cardName: 
     }
 
     try {
-        await supabaseAdmin
+        await supabase
             .from('notifications')
             .insert({
                 user_id: userId,
@@ -212,7 +210,13 @@ async function sendUserNotifications(email: string, fullName: string, cardName: 
     }
 }
 
-async function sendAdminNotifications(email: string, fullName: string, cardName: string, fee: number, cardId: string) {
+async function sendAdminNotifications(
+    email: string, 
+    fullName: string, 
+    cardName: string, 
+    fee: number, 
+    cardId: string
+) {
     console.log(`📧 Sending admin notifications...`);
     
     try {
@@ -316,8 +320,15 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        // ============================================================
+        // CREATE SUPABASE CLIENT LAZILY - INSIDE THE HANDLER
+        // ============================================================
+        console.log('🔐 Creating Supabase client...');
+        const supabase = await createClient();
+        console.log('✅ Supabase client created');
+
         // Get user data
-        const { data: user, error: userError } = await supabaseAdmin
+        const { data: user, error: userError } = await supabase
             .from('user_balances')
             .select('email, full_name, funding_balance, bonus_usdt, referral_earned, promo_earned, telegram_chat_id')
             .eq('user_id', userId)
@@ -333,10 +344,8 @@ export async function POST(request: NextRequest) {
 
         console.log('👤 User found:', user.email);
 
-        // ============================================================
-        // GET CARD SETTINGS - READ FEES FROM DATABASE
-        // ============================================================
-        const { data: settings, error: settingsError } = await supabaseAdmin
+        // Get card settings
+        const { data: settings, error: settingsError } = await supabase
             .from('card_settings')
             .select('*')
             .limit(1)
@@ -350,11 +359,7 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
-        console.log('⚙️ Settings loaded:', {
-            master_fee: settings.master_credit_fee,
-            visa_fee: settings.visa_debit_fee,
-            verve_fee: settings.verve_debit_fee,
-        });
+        console.log('⚙️ Settings loaded');
 
         // Check if card type is enabled
         const cardTypeMap: Record<string, string> = {
@@ -371,9 +376,7 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        // ============================================================
-        // GET CARD DETAILS FROM SETTINGS
-        // ============================================================
+        // Get card details from settings
         const fee = getCardFee(cardType, settings);
         const limits = getCardLimits(cardType, settings);
         const cardName = getCardName(cardType);
@@ -387,9 +390,7 @@ export async function POST(request: NextRequest) {
 
         let paymentMethodUsed = paymentMethod;
 
-        // ============================================================
-        // INTERNAL PAYMENT - DEDUCT BALANCE
-        // ============================================================
+        // Internal payment - deduct balance
         if (paymentMethod === 'internal') {
             if (!settings.option_a_enabled) {
                 return NextResponse.json({
@@ -403,11 +404,7 @@ export async function POST(request: NextRequest) {
                                (user.referral_earned || 0) + 
                                (user.promo_earned || 0);
 
-            console.log('💰 Balance check:', {
-                totalBalance: totalBalance,
-                fee: fee,
-                hasBalance: totalBalance >= fee
-            });
+            console.log('💰 Balance check:', { totalBalance, fee, hasBalance: totalBalance >= fee });
 
             if (totalBalance < fee) {
                 return NextResponse.json({
@@ -455,7 +452,7 @@ export async function POST(request: NextRequest) {
                 remainingFee = 0;
             }
 
-            const { error: updateError } = await supabaseAdmin
+            const { error: updateError } = await supabase
                 .from('user_balances')
                 .update({
                     funding_balance: newFundingBalance,
@@ -486,18 +483,16 @@ export async function POST(request: NextRequest) {
             paymentMethodUsed = 'external';
         }
 
-        // ============================================================
-        // CREATE CARD RECORD
-        // ============================================================
+        // Create card record
         let cardStatus: string;
         let paymentStatus: string;
         
         if (paymentMethodUsed === 'internal') {
-            cardStatus = 'pending'; // Admin needs to review and approve
-            paymentStatus = 'payment_confirmed'; // Payment is confirmed
+            cardStatus = 'pending';
+            paymentStatus = 'payment_confirmed';
         } else {
-            cardStatus = 'awaiting_payment'; // Waiting for user to pay
-            paymentStatus = 'awaiting_payment'; // Payment not yet received
+            cardStatus = 'awaiting_payment';
+            paymentStatus = 'awaiting_payment';
         }
 
         const cardData = {
@@ -511,7 +506,7 @@ export async function POST(request: NextRequest) {
             cvv: cvv,
             card_holder_name: user.full_name || 'User',
             status: cardStatus,
-            fee: fee, // Use fee from settings
+            fee: fee,
             payment_method: paymentMethodUsed,
             payment_status: paymentStatus,
             application_data: {
@@ -541,15 +536,9 @@ export async function POST(request: NextRequest) {
             updated_at: new Date().toISOString(),
         };
 
-        console.log('💳 Creating card:', { 
-            cardType: cardData.card_type,
-            status: cardData.status,
-            paymentMethod: cardData.payment_method,
-            paymentStatus: cardData.payment_status,
-            fee: cardData.fee
-        });
+        console.log('💳 Creating card');
 
-        const { data: card, error: cardError } = await supabaseAdmin
+        const { data: card, error: cardError } = await supabase
             .from('cards')
             .insert(cardData)
             .select()
@@ -567,6 +556,7 @@ export async function POST(request: NextRequest) {
 
         // Send notifications
         await sendUserNotifications(
+            supabase,
             user.email,
             user.full_name || 'User',
             cardName,
