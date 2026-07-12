@@ -1,13 +1,25 @@
 'use client';
-import { useState, useEffect } from 'react';
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '@/app/lib/supabase';
+import { useState } from 'react';
 import { 
-  LayoutDashboard, Bot, LineChart, BarChart3, Wallet, History, 
-  ShieldCheck, Settings, Menu, X, ChevronLeft, ChevronRight, Users,
-  ArrowRightLeft, Gift, TrendingUp
+  LayoutDashboard, 
+  Bot, 
+  LineChart, 
+  BarChart3, 
+  Wallet, 
+  History, 
+  ShieldCheck, 
+  Settings, 
+  Menu, 
+  X, 
+  ChevronLeft, 
+  ChevronRight, 
+  Users,
+  ArrowRightLeft, 
+  Gift, 
+  CreditCard
 } from 'lucide-react';
 
 const menuItems = [
@@ -18,12 +30,8 @@ const menuItems = [
   { name: 'My Wallet', icon: Wallet, href: '/dashboard/wallet' },
   { name: 'Transfer', icon: ArrowRightLeft, href: '/dashboard/transfer' },
   { name: 'Trade History', icon: History, href: '/dashboard/transactions' },
-  { 
-    name: 'Referral Program', 
-    icon: Gift, 
-    href: '/dashboard/referral',
-    description: 'Earn 7 USDT per referral'
-  },
+  { name: 'My Cards', icon: CreditCard, href: '/dashboard/cards' },
+  { name: 'Referral Program', icon: Gift, href: '/dashboard/referral' },
   { name: 'Risk Controls', icon: ShieldCheck, href: '/dashboard/risk' },
   { name: 'Community', icon: Users, href: '/dashboard/community' },
   { name: 'Settings', icon: Settings, href: '/dashboard/settings' },
@@ -33,49 +41,10 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [unreadReferrals, setUnreadReferrals] = useState(0);
-  const [user, setUser] = useState<any>(null);
-
-  // Load unread referral count
-  useEffect(() => {
-    loadUnreadCount();
-  }, []);
-
-  const loadUnreadCount = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        
-        // Get unread referrals count
-        const { data: referrals } = await supabase
-          .from('referrals')
-          .select('id')
-          .eq('referrer_id', user.id)
-          .eq('is_read', false);
-
-        if (referrals) {
-          setUnreadReferrals(referrals.length);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading referral count:', error);
-    }
-  };
-
-  // Listen for auth changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        loadUnreadCount();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   return (
     <>
+      {/* Mobile Menu Button */}
       <button 
         onClick={() => setIsMobileMenuOpen(true)} 
         className="lg:hidden fixed top-4 left-4 z-50 bg-[#10161f] text-white p-3 rounded-xl border border-white/5 shadow-xl"
@@ -83,18 +52,15 @@ export default function DashboardSidebar() {
         <Menu size={24} />
       </button>
 
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="lg:hidden fixed inset-0 bg-black/80 z-40"
-          />
-        )}
-      </AnimatePresence>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="lg:hidden fixed inset-0 bg-black/80 z-40"
+        />
+      )}
 
+      {/* Sidebar */}
       <aside className={`
         fixed top-0 left-0 bottom-0 z-50 bg-[#10161f] border-r border-white/5 transform transition-all duration-300 flex flex-col
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -102,6 +68,7 @@ export default function DashboardSidebar() {
         ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}
       `}>
         
+        {/* Logo */}
         <div className={`p-6 border-b border-white/5 flex justify-between items-center ${isCollapsed ? 'justify-center' : ''}`}>
           <Link href="/dashboard" className={`flex items-center gap-3 cursor-pointer ${isCollapsed ? 'flex-col gap-1' : ''}`}>
             <img 
@@ -118,6 +85,7 @@ export default function DashboardSidebar() {
           </button>
         </div>
 
+        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {!isCollapsed && (
             <p className="text-xs uppercase text-[#8e96a3] font-semibold tracking-wider px-4 pt-4 pb-2">Navigation</p>
@@ -125,7 +93,6 @@ export default function DashboardSidebar() {
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href));
-            const isReferralItem = item.name === 'Referral Program';
             
             return (
               <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
@@ -136,18 +103,7 @@ export default function DashboardSidebar() {
                 } ${isCollapsed ? 'justify-center px-2' : ''}`}>
                   <IconComponent size={20} />
                   {!isCollapsed && (
-                    <div className="flex flex-col flex-1">
-                      <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>
-                      {item.description && (
-                        <span className="text-[10px] text-[#8e96a3]">{item.description}</span>
-                      )}
-                    </div>
-                  )}
-                  {/* Badge - only shows on Referral Program tab when there are unread referrals */}
-                  {!isCollapsed && isReferralItem && unreadReferrals > 0 && (
-                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse ml-auto">
-                      {unreadReferrals}
-                    </span>
+                    <span className="font-medium text-sm whitespace-nowrap">{item.name}</span>
                   )}
                 </div>
               </Link>
@@ -155,6 +111,7 @@ export default function DashboardSidebar() {
           })}
         </nav>
 
+        {/* Collapse Button */}
         <div className="p-4 border-t border-white/5">
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)}

@@ -21,7 +21,8 @@ import {
   Image,
   Gift,
   TrendingUp,
-  Tag  // <--- ADDED Tag for Promo Codes
+  Tag,
+  CreditCard  // <--- ADDED CreditCard for Card Management
 } from 'lucide-react';
 
 const menuItems = [
@@ -59,13 +60,19 @@ const menuItems = [
     description: 'AI Telegram Screenshots'
   },
   { 
+    name: 'Card Management',  // <--- NEW ITEM
+    icon: CreditCard, 
+    href: '/admin/cards',
+    description: 'Manage User Cards'
+  },
+  { 
     name: 'Referral System', 
     icon: Gift, 
     href: '/admin/referral',
     description: 'Manage Referrals & Payouts'
   },
   { 
-    name: 'Promo Codes',  // <--- NEW ITEM
+    name: 'Promo Codes',
     icon: Tag, 
     href: '/admin/referral/promos',
     description: 'Create & Manage Promos'

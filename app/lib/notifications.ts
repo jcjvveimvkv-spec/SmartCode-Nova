@@ -419,7 +419,7 @@ export function adminDepositAlert(email: string, name: string, amount: number, t
 // ============================================================
 
 // --- HELPER: Get User Telegram Chat ID ---
-async function getUserTelegramChatId(email: string): Promise<string | null> {
+export async function getUserTelegramChatId(email: string): Promise<string | null> {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -443,7 +443,7 @@ async function getUserTelegramChatId(email: string): Promise<string | null> {
 }
 
 // --- HELPER: Create In-App Notification ---
-async function createInAppNotification(
+export async function createInAppNotification(
   userId: string,
   type: string,
   title: string,
@@ -751,5 +751,388 @@ export async function notifyUserPromoClaim(
     }
   } catch (error) {
     console.error('❌ Promo claim notification error:', error);
+  }
+}
+
+// ============================================================
+// 6. CARD NOTIFICATIONS (NEW - Professional Email Templates)
+// ============================================================
+
+// --- CARD EMAIL TEMPLATES ---
+
+export function cardApplicationSubmittedEmailTemplate(name: string, cardName: string, fee: number, paymentMethod: string, applicationId: string) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Application Submitted</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0e14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0b0e14; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="480" cellpadding="0" cellspacing="0" border="0" style="background-color: #141a24; border-radius: 24px; border: 1px solid #2a2a50; padding: 40px; max-width: 480px; width: 100%;">
+                    <tr>
+                        <td style="text-align: center; padding-bottom: 32px; border-bottom: 1px solid #2a2a50;">
+                            <img src="${LOGO_URL}" alt="SmartCodeNova" style="height: 40px; width: auto; display: inline-block; vertical-align: middle; margin-right: 10px;" />
+                            <span style="font-size: 24px; font-weight: 700; color: #f3f4f6; vertical-align: middle; background: linear-gradient(90deg, #ef4444, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">SmartCodeNova</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 32px; text-align: center;">
+                            <div style="display: inline-block; background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 6px 16px; margin-bottom: 16px;">
+                                <span style="color: #10b981; font-size: 14px; font-weight: 600;">✅ APPLICATION SUBMITTED</span>
+                            </div>
+                            <h1 style="color: #f3f4f6; font-size: 24px; font-weight: 700; margin: 0 0 8px 0;">Card Application Received!</h1>
+                            <p style="color: #8e96a3; font-size: 16px; margin: 0 0 24px 0;">Your request is being processed by our team.</p>
+                            
+                            <div style="background-color: #0b0e14; border-radius: 12px; padding: 20px; border: 1px solid #2a2a50; margin-bottom: 24px; text-align: left;">
+                                <h4 style="color: #f3f4f6; margin: 0 0 12px 0;">Application Details</h4>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Card Type:</strong> ${cardName}</p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Application Fee:</strong> ${fee} USDT</p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Payment Method:</strong> ${paymentMethod === 'internal' ? '💳 Internal (Funding Balance)' : '🌐 External (Crypto Wallet)'}</p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Application ID:</strong> <span style="color: #6366f1; font-family: monospace;">${applicationId}</span></p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Status:</strong> <span style="color: #f59e0b;">Under Review</span></p>
+                            </div>
+
+                            <p style="color: #8e96a3; font-size: 14px; margin: 0 0 20px 0; line-height: 1.6;">Our team will review your application within 24-48 hours. You will receive a notification once a decision has been made.</p>
+
+                            <table cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td align="center" style="border-radius: 12px; background: linear-gradient(90deg, #ef4444, #3b82f6); padding: 16px 32px;">
+                                        <a href="https://smartcodenova.com/dashboard/cards" style="color: #ffffff; font-size: 16px; font-weight: 700; text-decoration: none; display: inline-block;">Track Application</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 32px; border-top: 1px solid #2a2a50; text-align: center;">
+                            <p style="color: #8e96a3; font-size: 12px; margin: 0;">SmartCodeNova – Automated AI Trading Bots<br />Need help? Contact us at <a href="mailto:info@smartcodenova.online" style="color: #6366f1; text-decoration: none;">info@smartcodenova.online</a></p>
+                            <p style="color: #4a4a6a; font-size: 11px; margin: 8px 0 0 0;">&copy; 2025 SmartCodeNova. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+}
+
+export function cardApprovedEmailTemplate(name: string, cardName: string, cardNumber: string, expiryDate: string, shippingAddress: any) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Approved</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0e14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0b0e14; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="480" cellpadding="0" cellspacing="0" border="0" style="background-color: #141a24; border-radius: 24px; border: 1px solid #2a2a50; padding: 40px; max-width: 480px; width: 100%;">
+                    <tr>
+                        <td style="text-align: center; padding-bottom: 32px; border-bottom: 1px solid #2a2a50;">
+                            <img src="${LOGO_URL}" alt="SmartCodeNova" style="height: 40px; width: auto; display: inline-block; vertical-align: middle; margin-right: 10px;" />
+                            <span style="font-size: 24px; font-weight: 700; color: #f3f4f6; vertical-align: middle; background: linear-gradient(90deg, #ef4444, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">SmartCodeNova</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 32px; text-align: center;">
+                            <div style="display: inline-block; background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px; padding: 6px 16px; margin-bottom: 16px;">
+                                <span style="color: #10b981; font-size: 14px; font-weight: 600;">🎉 CARD APPROVED</span>
+                            </div>
+                            <h1 style="color: #f3f4f6; font-size: 24px; font-weight: 700; margin: 0 0 8px 0;">Your Card Has Been Approved!</h1>
+                            <p style="color: #8e96a3; font-size: 16px; margin: 0 0 24px 0;">Your ${cardName} is being issued and will be shipped to you.</p>
+                            
+                            <div style="background-color: #0b0e14; border-radius: 12px; padding: 20px; border: 1px solid #2a2a50; margin-bottom: 24px; text-align: left;">
+                                <h4 style="color: #f3f4f6; margin: 0 0 12px 0;">Card Details</h4>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Card Type:</strong> ${cardName}</p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Card Number:</strong> <span style="color: #6366f1; font-family: monospace;">•••• •••• •••• ${cardNumber.slice(-4)}</span></p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Expiry Date:</strong> ${expiryDate}</p>
+                            </div>
+
+                            <div style="background-color: #0b0e14; border-radius: 12px; padding: 20px; border: 1px solid #2a2a50; margin-bottom: 24px; text-align: left;">
+                                <h4 style="color: #f3f4f6; margin: 0 0 12px 0;">📬 Shipping Address</h4>
+                                <p style="color: #8e96a3; margin: 2px 0;">${shippingAddress.address}</p>
+                                <p style="color: #8e96a3; margin: 2px 0;">${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}</p>
+                                <p style="color: #8e96a3; margin: 2px 0;">${shippingAddress.country}</p>
+                            </div>
+
+                            <p style="color: #8e96a3; font-size: 14px; margin: 0 0 20px 0; line-height: 1.6;">Your card will be shipped within 2-3 business days. You will receive a tracking number once it's dispatched.</p>
+
+                            <table cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td align="center" style="border-radius: 12px; background: linear-gradient(90deg, #ef4444, #3b82f6); padding: 16px 32px;">
+                                        <a href="https://smartcodenova.com/dashboard/cards" style="color: #ffffff; font-size: 16px; font-weight: 700; text-decoration: none; display: inline-block;">View My Cards</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 32px; border-top: 1px solid #2a2a50; text-align: center;">
+                            <p style="color: #8e96a3; font-size: 12px; margin: 0;">SmartCodeNova – Automated AI Trading Bots<br />Need help? Contact us at <a href="mailto:info@smartcodenova.online" style="color: #6366f1; text-decoration: none;">info@smartcodenova.online</a></p>
+                            <p style="color: #4a4a6a; font-size: 11px; margin: 8px 0 0 0;">&copy; 2025 SmartCodeNova. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+}
+
+export function cardShippedEmailTemplate(name: string, cardName: string, trackingNumber: string) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Shipped</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0b0e14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0b0e14; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" max-width="480" cellpadding="0" cellspacing="0" border="0" style="background-color: #141a24; border-radius: 24px; border: 1px solid #2a2a50; padding: 40px; max-width: 480px; width: 100%;">
+                    <tr>
+                        <td style="text-align: center; padding-bottom: 32px; border-bottom: 1px solid #2a2a50;">
+                            <img src="${LOGO_URL}" alt="SmartCodeNova" style="height: 40px; width: auto; display: inline-block; vertical-align: middle; margin-right: 10px;" />
+                            <span style="font-size: 24px; font-weight: 700; color: #f3f4f6; vertical-align: middle; background: linear-gradient(90deg, #ef4444, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">SmartCodeNova</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 32px; text-align: center;">
+                            <div style="display: inline-block; background-color: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 20px; padding: 6px 16px; margin-bottom: 16px;">
+                                <span style="color: #3b82f6; font-size: 14px; font-weight: 600;">📬 CARD SHIPPED</span>
+                            </div>
+                            <h1 style="color: #f3f4f6; font-size: 24px; font-weight: 700; margin: 0 0 8px 0;">Your Card Is On The Way!</h1>
+                            <p style="color: #8e96a3; font-size: 16px; margin: 0 0 24px 0;">Your ${cardName} has been dispatched.</p>
+                            
+                            <div style="background-color: #0b0e14; border-radius: 12px; padding: 20px; border: 1px solid #2a2a50; margin-bottom: 24px; text-align: left;">
+                                <h4 style="color: #f3f4f6; margin: 0 0 12px 0;">Tracking Information</h4>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Tracking Number:</strong> <span style="color: #6366f1; font-family: monospace;">${trackingNumber}</span></p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Carrier:</strong> Standard Shipping</p>
+                                <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Estimated Delivery:</strong> 5-7 Business Days</p>
+                            </div>
+
+                            <p style="color: #8e96a3; font-size: 14px; margin: 0 0 20px 0; line-height: 1.6;">Once you receive your card, you will need to activate it at any ATM by setting your PIN. Follow the on-screen instructions to complete activation.</p>
+
+                            <table cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td align="center" style="border-radius: 12px; background: linear-gradient(90deg, #ef4444, #3b82f6); padding: 16px 32px;">
+                                        <a href="https://smartcodenova.com/dashboard/cards" style="color: #ffffff; font-size: 16px; font-weight: 700; text-decoration: none; display: inline-block;">Track Your Card</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 32px; border-top: 1px solid #2a2a50; text-align: center;">
+                            <p style="color: #8e96a3; font-size: 12px; margin: 0;">SmartCodeNova – Automated AI Trading Bots<br />Need help? Contact us at <a href="mailto:info@smartcodenova.online" style="color: #6366f1; text-decoration: none;">info@smartcodenova.online</a></p>
+                            <p style="color: #4a4a6a; font-size: 11px; margin: 8px 0 0 0;">&copy; 2025 SmartCodeNova. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+}
+
+// --- CARD NOTIFICATION FUNCTIONS ---
+
+// --- NOTIFY USER: CARD APPLICATION SUBMITTED ---
+export async function notifyUserCardApplication(
+  email: string,
+  name: string,
+  cardName: string,
+  fee: number,
+  paymentMethod: string,
+  applicationId: string,
+  userId: string
+) {
+  try {
+    const html = cardApplicationSubmittedEmailTemplate(name, cardName, fee, paymentMethod, applicationId);
+    await sendEmail(email, `💳 Card Application Submitted - ${cardName}`, html, 'info');
+    console.log('✅ Card application email sent');
+
+    await createInAppNotification(
+      userId,
+      'card_application',
+      '💳 Card Application Submitted',
+      `Your application for ${cardName} has been submitted and is under review.`,
+      { card_name: cardName, application_id: applicationId }
+    );
+
+    const chatId = await getUserTelegramChatId(email);
+    if (chatId) {
+      const tgMsg = `💳 <b>Card Application Submitted</b>\n\n👤 Name: ${name}\n💳 Card: ${cardName}\n💰 Fee: ${fee} USDT\n🆔 ID: ${applicationId}\n\n🟡 Status: Under Review`;
+      await sendTelegram(chatId, tgMsg);
+    }
+  } catch (error) {
+    console.error('❌ Card application notification error:', error);
+  }
+}
+
+// --- NOTIFY ADMIN: NEW CARD APPLICATION ---
+export async function notifyAdminNewCardApplication(
+  userEmail: string,
+  userName: string,
+  cardName: string,
+  fee: number,
+  paymentMethod: string,
+  applicationId: string
+) {
+  try {
+    const subject = `💳 New Card Application - ${userName}`;
+    const html = `
+      <div style="background-color: #0b0e14; padding: 20px; font-family: Arial; color: #f3f4f6;">
+        <h2 style="color: #f59e0b;">💳 New Card Application</h2>
+        <p><strong>User:</strong> ${userName} (${userEmail})</p>
+        <p><strong>Card Type:</strong> ${cardName}</p>
+        <p><strong>Fee:</strong> ${fee} USDT</p>
+        <p><strong>Payment Method:</strong> ${paymentMethod === 'internal' ? '💳 Internal (Funding Balance)' : '🌐 External (Crypto Wallet)'}</p>
+        <p><strong>Application ID:</strong> ${applicationId}</p>
+        <p><a href="https://smartcodenova.com/admin/cards/${applicationId}" style="color: #6366f1;">Review Application</a></p>
+      </div>
+    `;
+    
+    await sendEmail('smartcodenova@gmail.com', subject, html, 'info');
+
+    const tgMsg = `💳 <b>New Card Application</b>\n\n👤 User: ${userName}\n📧 Email: ${userEmail}\n💳 Card: ${cardName}\n💰 Fee: ${fee} USDT\n💵 Payment: ${paymentMethod === 'internal' ? 'Internal' : 'External'}\n🆔 ID: ${applicationId}`;
+    await sendAdminTelegram(tgMsg);
+  } catch (error) {
+    console.error('❌ Admin card application notification error:', error);
+  }
+}
+
+// --- NOTIFY USER: CARD APPROVED ---
+export async function notifyUserCardApproved(
+  email: string,
+  name: string,
+  cardName: string,
+  cardNumber: string,
+  expiryDate: string,
+  shippingAddress: any,
+  userId: string
+) {
+  try {
+    const html = cardApprovedEmailTemplate(name, cardName, cardNumber, expiryDate, shippingAddress);
+    await sendEmail(email, `✅ Your ${cardName} Has Been Approved!`, html, 'info');
+    console.log('✅ Card approved email sent');
+
+    await createInAppNotification(
+      userId,
+      'card_approved',
+      '✅ Card Approved!',
+      `Your ${cardName} has been approved and is being issued.`,
+      { card_name: cardName, card_number: cardNumber.slice(-4) }
+    );
+
+    const chatId = await getUserTelegramChatId(email);
+    if (chatId) {
+      const tgMsg = `✅ <b>Card Approved!</b>\n\n👤 Name: ${name}\n💳 Card: ${cardName}\n📦 Status: Being Issued\n📬 Shipping to: ${shippingAddress.address}`;
+      await sendTelegram(chatId, tgMsg);
+    }
+  } catch (error) {
+    console.error('❌ Card approval notification error:', error);
+  }
+}
+
+// --- NOTIFY USER: CARD SHIPPED ---
+export async function notifyUserCardShipped(
+  email: string,
+  name: string,
+  cardName: string,
+  trackingNumber: string,
+  userId: string
+) {
+  try {
+    const html = cardShippedEmailTemplate(name, cardName, trackingNumber);
+    await sendEmail(email, `📬 Your ${cardName} Has Been Shipped!`, html, 'info');
+    console.log('✅ Card shipped email sent');
+
+    await createInAppNotification(
+      userId,
+      'card_shipped',
+      '📬 Card Shipped!',
+      `Your ${cardName} has been shipped. Tracking: ${trackingNumber}`,
+      { card_name: cardName, tracking_number: trackingNumber }
+    );
+
+    const chatId = await getUserTelegramChatId(email);
+    if (chatId) {
+      const tgMsg = `📬 <b>Card Shipped!</b>\n\n👤 Name: ${name}\n💳 Card: ${cardName}\n🔢 Tracking: ${trackingNumber}\n\n📦 Estimated Delivery: 5-7 Business Days`;
+      await sendTelegram(chatId, tgMsg);
+    }
+  } catch (error) {
+    console.error('❌ Card shipped notification error:', error);
+  }
+}
+
+// --- NOTIFY USER: CARD ACTIVATED ---
+export async function notifyUserCardActivated(
+  email: string,
+  name: string,
+  cardName: string,
+  userId: string
+) {
+  try {
+    const html = `
+      <div style="background-color: #0b0e14; padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f3f4f6; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #141a24; border-radius: 24px; border: 1px solid #2a2a50; padding: 40px; max-width: 600px; width: 100%; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
+          <div style="text-align: center; padding-bottom: 24px; border-bottom: 1px solid #2a2a50; margin-bottom: 24px;">
+            <img src="${LOGO_URL}" alt="SmartCodeNova" style="height: 40px; width: auto; display: inline-block; vertical-align: middle; margin-right: 10px;" />
+            <span style="font-size: 20px; font-weight: 700; color: #f3f4f6; vertical-align: middle; background: linear-gradient(90deg, #ef4444, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">SmartCodeNova</span>
+          </div>
+
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="background-color: #10b981; color: white; font-size: 32px; padding: 16px; border-radius: 50%; display: inline-block;">✅</span>
+          </div>
+
+          <h1 style="color: #f3f4f6; font-size: 24px; font-weight: 700; text-align: center; margin: 0 0 8px 0;">Card Activated! 🎉</h1>
+          <p style="color: #8e96a3; font-size: 16px; text-align: center; margin: 0 0 24px 0;">Your ${cardName} is now active and ready to use.</p>
+
+          <div style="background-color: #0b0e14; border-radius: 12px; padding: 20px; border: 1px solid #2a2a50; margin-bottom: 24px; text-align: left;">
+            <h4 style="color: #f3f4f6; margin: 0 0 12px 0;">Card Status</h4>
+            <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Status:</strong> <span style="color: #10b981;">✅ Active</span></p>
+            <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Card Type:</strong> ${cardName}</p>
+            <p style="color: #8e96a3; margin: 4px 0;"><strong style="color: #f3f4f6;">Activated:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+
+          <p style="color: #8e96a3; font-size: 14px; text-align: center; margin: 20px 0;">You can now use your card for purchases and transactions worldwide.</p>
+
+          <div style="text-align: center; border-top: 1px solid #2a2a50; padding-top: 16px; margin-top: 16px;">
+            <p style="color: #4a4a6a; font-size: 12px; margin: 0;">&copy; 2025 SmartCodeNova. All rights reserved.</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    await sendEmail(email, `✅ Your ${cardName} Is Now Active!`, html, 'info');
+    console.log('✅ Card activated email sent');
+
+    await createInAppNotification(
+      userId,
+      'card_activated',
+      '✅ Card Activated!',
+      `Your ${cardName} is now active and ready to use.`,
+      { card_name: cardName }
+    );
+
+    const chatId = await getUserTelegramChatId(email);
+    if (chatId) {
+      const tgMsg = `✅ <b>Card Activated!</b>\n\n👤 Name: ${name}\n💳 Card: ${cardName}\n\nYour card is now ready to use.`;
+      await sendTelegram(chatId, tgMsg);
+    }
+  } catch (error) {
+    console.error('❌ Card activation notification error:', error);
   }
 }
