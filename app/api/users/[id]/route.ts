@@ -1,34 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { createClient } from '@/app/lib/supabase-server';
 
 // ============================================================
-// GET - With proper async params handling for Next.js 16
+// GET
 // ============================================================
 export async function GET(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
-        // In Next.js 16, params is a Promise, so we need to await it
         const { id: userId } = await context.params;
         
         console.log('📡 Fetching user data for ID:', userId);
 
         if (!userId) {
-            console.error('❌ No user ID provided');
             return NextResponse.json({
                 success: false,
                 error: 'User ID is required'
             }, { status: 400 });
         }
 
-        // Fetch user from user_balances table
-        const { data: user, error } = await supabaseAdmin
+        const supabase = await createClient();
+
+        const { data: user, error } = await supabase
             .from('user_balances')
             .select('*')
             .eq('user_id', userId)
@@ -37,12 +31,11 @@ export async function GET(
         if (error) {
             console.error('❌ Database error:', error);
             
-            // If user not found in user_balances, try to get from auth
             if (error.code === 'PGRST116') {
-                console.log('👤 User not found in user_balances, checking auth...');
+                console.log('👤 User not found in user_balances');
                 
                 // Try to get user from auth
-                const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+                const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
                 
                 if (authError || !authUser) {
                     console.error('❌ Auth user not found:', authError);
@@ -52,8 +45,7 @@ export async function GET(
                     }, { status: 404 });
                 }
                 
-                // Create user_balances record if it doesn't exist
-                const { data: newUser, error: insertError } = await supabaseAdmin
+                const { data: newUser, error: insertError } = await supabase
                     .from('user_balances')
                     .insert({
                         user_id: userId,
@@ -92,7 +84,6 @@ export async function GET(
 
         console.log('✅ User data fetched successfully:', user.email);
         
-        // Calculate total balance
         const totalBalance = (user.funding_balance || 0) + 
                            (user.bonus_usdt || 0) + 
                            (user.referral_earned || 0) + 
