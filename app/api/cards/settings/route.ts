@@ -1,26 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 export async function GET() {
     try {
-        const { data, error } = await supabaseAdmin
+        // ============================================================
+        // USE ADMIN CLIENT FOR BYPASSING RLS
+        // ============================================================
+        console.log('🔐 Creating Supabase admin client for settings...');
+        const supabase = getSupabaseAdmin();
+        console.log('✅ Supabase admin client created');
+
+        const { data, error } = await supabase
             .from('card_settings')
             .select('*')
             .limit(1)
             .single();
 
         if (error) {
-            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+            console.error('❌ Error fetching settings:', error);
+            return NextResponse.json({ 
+                success: false, 
+                error: error.message 
+            }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, data });
+        return NextResponse.json({ 
+            success: true, 
+            data 
+        });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        console.error('❌ Error in GET /api/cards/settings:', error);
+        return NextResponse.json({ 
+            success: false, 
+            error: error.message 
+        }, { status: 500 });
     }
 }
 
@@ -28,14 +41,22 @@ export async function PUT(request: NextRequest) {
     try {
         const body = await request.json();
 
+        // ============================================================
+        // USE ADMIN CLIENT FOR BYPASSING RLS
+        // ============================================================
+        console.log('🔐 Creating Supabase admin client for settings update...');
+        const supabase = getSupabaseAdmin();
+        console.log('✅ Supabase admin client created');
+
         // First, get the existing settings to get the ID
-        const { data: existingSettings, error: fetchError } = await supabaseAdmin
+        const { data: existingSettings, error: fetchError } = await supabase
             .from('card_settings')
             .select('id')
             .limit(1)
             .single();
 
         if (fetchError || !existingSettings) {
+            console.error('❌ Settings not found:', fetchError);
             return NextResponse.json({ 
                 success: false, 
                 error: 'Card settings not found' 
@@ -85,7 +106,7 @@ export async function PUT(request: NextRequest) {
         if (verve_debit_daily_limit !== undefined) updateData.verve_debit_daily_limit = verve_debit_daily_limit;
         if (verve_debit_monthly_limit !== undefined) updateData.verve_debit_monthly_limit = verve_debit_monthly_limit;
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from('card_settings')
             .update(updateData)
             .eq('id', existingSettings.id)
@@ -93,11 +114,23 @@ export async function PUT(request: NextRequest) {
             .single();
 
         if (error) {
-            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+            console.error('❌ Error updating settings:', error);
+            return NextResponse.json({ 
+                success: false, 
+                error: error.message 
+            }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, data });
+        console.log('✅ Settings updated successfully');
+        return NextResponse.json({ 
+            success: true, 
+            data 
+        });
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        console.error('❌ Error in PUT /api/cards/settings:', error);
+        return NextResponse.json({ 
+            success: false, 
+            error: error.message 
+        }, { status: 500 });
     }
 }
