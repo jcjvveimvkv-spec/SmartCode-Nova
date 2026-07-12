@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
     try {
@@ -22,8 +17,15 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
+        // ============================================================
+        // USE ADMIN CLIENT FOR BYPASSING RLS
+        // ============================================================
+        console.log('🔐 Creating Supabase admin client...');
+        const supabase = getSupabaseAdmin();
+        console.log('✅ Supabase admin client created');
+
         // Get the card application
-        const { data: card, error: cardError } = await supabaseAdmin
+        const { data: card, error: cardError } = await supabase
             .from('cards')
             .select('*')
             .eq('id', applicationId)
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest) {
             }, { status: 404 });
         }
 
-        console.log('📋 Card found:', card.id);
+        console.log('📋 Card found:', card.id, 'Current status:', card.status);
 
         // Upload screenshot if provided
         let screenshotUrl = null;
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
                 const fileName = `payment-${applicationId}-${Date.now()}.${screenshot.name.split('.').pop()}`;
                 const filePath = `card-payments/${fileName}`;
 
-                const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
                     .from('screenshots')
                     .upload(filePath, buffer, {
                         contentType: screenshot.type,
@@ -55,14 +57,16 @@ export async function POST(request: NextRequest) {
                     });
 
                 if (!uploadError) {
-                    const { data: urlData } = supabaseAdmin.storage
+                    const { data: urlData } = supabase.storage
                         .from('screenshots')
                         .getPublicUrl(filePath);
                     screenshotUrl = urlData?.publicUrl || null;
                     console.log('📸 Screenshot uploaded');
+                } else {
+                    console.error('Upload error:', uploadError);
                 }
             } catch (uploadError) {
-                console.error('Upload error:', uploadError);
+                console.error('Screenshot upload failed:', uploadError);
             }
         }
 
@@ -78,7 +82,7 @@ export async function POST(request: NextRequest) {
             updateData.payment_screenshot = screenshotUrl;
         }
 
-        const { data: updatedCard, error: updateError } = await supabaseAdmin
+        const { data: updatedCard, error: updateError } = await supabase
             .from('cards')
             .update(updateData)
             .eq('id', applicationId)
@@ -93,10 +97,10 @@ export async function POST(request: NextRequest) {
             }, { status: 500 });
         }
 
-        console.log('✅ Card payment updated:', updatedCard.id);
+        console.log('✅ Card payment updated:', updatedCard.id, 'Status:', updatedCard.status);
 
-        // Get user details
-        const { data: user } = await supabaseAdmin
+        // Get user details for notifications
+        const { data: user } = await supabase
             .from('user_balances')
             .select('email, full_name')
             .eq('user_id', card.user_id)
@@ -105,8 +109,6 @@ export async function POST(request: NextRequest) {
         // Send admin notifications
         if (user) {
             try {
-                const { sendEmail, sendAdminTelegram } = await import('@/app/lib/notifications');
-                
                 const subject = `💳 Card Payment Confirmed - ${user.full_name}`;
                 const html = `
                     <div style="background-color: #0b0e14; padding: 20px; font-family: Arial; color: #f3f4f6;">
@@ -116,13 +118,43 @@ export async function POST(request: NextRequest) {
                         <p><strong>Transaction ID:</strong> ${txId}</p>
                         <p><strong>Application ID:</strong> ${applicationId}</p>
                         <p><a href="https://smartcodenova.com/admin/cards/${applicationId}" style="color: #6366f1;">Review Application</a></p>
+                        <p style="color: #f59e0b; margin-top: 10px;">⚠️ Payment received. Application is now under review.</p>
                     </div>
                 `;
 
-                await sendEmail('smartcodenova@gmail.com', subject, html, 'info');
+                await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        from: process.env.EMAIL_FROM || 'SmartCodeNova <noreply@smartcodenova.com>',
+                        to: ['smartcodenova@gmail.com'],
+                        subject: subject,
+                        html: html,
+                    }),
+                });
 
-                const tgMsg = `✅ <b>Card Payment Confirmed</b>\n\n👤 User: ${user.full_name}\n💳 Card: ${card.card_name}\n🆔 TXID: ${txId}\n📋 Review: /admin/cards/${applicationId}`;
-                await sendAdminTelegram(tgMsg);
+                // Admin Telegram
+                const telegramToken = process.env.TELEGRAM_BOT_TOKEN_NEW;
+                if (telegramToken) {
+                    const chatIds = process.env.TELEGRAM_GROUP_CHAT_IDS?.split(',').map(id => id.trim()) || [];
+                    for (const chatId of chatIds) {
+                        const tgMsg = `✅ <b>Card Payment Confirmed</b>\n\n👤 User: ${user.full_name}\n💳 Card: ${card.card_name}\n🆔 TXID: ${txId}\n📋 Status: Under Review\n🔗 /admin/cards/${applicationId}`;
+                        await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: chatId,
+                                text: tgMsg,
+                                parse_mode: 'HTML',
+                            }),
+                        });
+                    }
+                }
+                
+                console.log('✅ Admin notifications sent');
             } catch (notifyError) {
                 console.error('Notification error:', notifyError);
             }
