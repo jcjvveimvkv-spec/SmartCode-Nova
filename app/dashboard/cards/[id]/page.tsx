@@ -64,18 +64,15 @@ export default function CardDetailsPage() {
     const [showCvv, setShowCvv] = useState(false);
 
     useEffect(() => {
-        // Only load if we have a cardId
         if (cardId) {
             loadCardData();
         } else {
-            // If no cardId, redirect back to cards page
             console.warn('⚠️ No card ID provided, redirecting...');
             router.push('/dashboard/cards');
         }
     }, [cardId]);
 
     const loadCardData = async () => {
-        // Double-check we have a cardId
         if (!cardId) {
             console.error('❌ No card ID available');
             setError('Invalid card ID');
@@ -98,6 +95,7 @@ export default function CardDetailsPage() {
             }
 
             if (!user) {
+                console.error('❌ No user found, redirecting to login...');
                 router.push('/auth/login');
                 return;
             }
@@ -105,14 +103,22 @@ export default function CardDetailsPage() {
             console.log('👤 User ID:', user.id);
             console.log('🔍 Fetching card ID:', cardId);
 
-            // Fetch card details
+            // Fetch card details - using the admin client approach
             const response = await fetch(`/api/cards/${cardId}`);
             console.log('📡 API Response status:', response.status);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('❌ API Error:', errorData);
+                setError(errorData.error || `Failed to load card (Status: ${response.status})`);
+                setLoading(false);
+                return;
+            }
             
             const result = await response.json();
             console.log('📡 API Response data:', result);
 
-            if (response.ok && result.success && result.data) {
+            if (result.success && result.data) {
                 // Verify the card belongs to the user
                 if (result.data.user_id !== user.id) {
                     console.warn('⚠️ Card does not belong to user:', {

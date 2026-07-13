@@ -1,107 +1,167 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/app/lib/supabase-server';
+import { getSupabaseAdmin } from '@/app/lib/supabase-server';
 
 // ============================================================
-// GET
+// GET - Fetch card details
 // ============================================================
 export async function GET(
     request: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id: userId } = await context.params;
+        // Await params (Next.js 16 requires this)
+        const { id: cardId } = await context.params;
         
-        console.log('📡 Fetching user data for ID:', userId);
+        console.log('📡 GET /api/cards/[id] - Card ID:', cardId);
+        console.log('📡 GET /api/cards/[id] - Request URL:', request.url);
 
-        if (!userId) {
+        if (!cardId) {
+            console.error('❌ No card ID provided');
             return NextResponse.json({
                 success: false,
-                error: 'User ID is required'
+                error: 'Card ID is required'
             }, { status: 400 });
         }
 
-        const supabase = await createClient();
+        // Create admin client inside handler
+        let supabase;
+        try {
+            supabase = getSupabaseAdmin();
+            console.log('✅ Supabase admin client created');
+        } catch (clientError: any) {
+            console.error('❌ Failed to create Supabase client:', clientError);
+            return NextResponse.json({
+                success: false,
+                error: 'Failed to connect to database'
+            }, { status: 500 });
+        }
 
-        const { data: user, error } = await supabase
-            .from('user_balances')
+        // Query the database
+        console.log('🔍 Querying cards table for ID:', cardId);
+        
+        const { data: card, error } = await supabase
+            .from('cards')
             .select('*')
-            .eq('user_id', userId)
-            .single();
+            .eq('id', cardId)
+            .maybeSingle();
 
         if (error) {
             console.error('❌ Database error:', error);
-            
-            if (error.code === 'PGRST116') {
-                console.log('👤 User not found in user_balances');
-                
-                // Try to get user from auth
-                const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
-                
-                if (authError || !authUser) {
-                    console.error('❌ Auth user not found:', authError);
-                    return NextResponse.json({
-                        success: false,
-                        error: 'User not found'
-                    }, { status: 404 });
-                }
-                
-                const { data: newUser, error: insertError } = await supabase
-                    .from('user_balances')
-                    .insert({
-                        user_id: userId,
-                        email: authUser.user.email,
-                        full_name: authUser.user.user_metadata?.full_name || '',
-                        funding_balance: 0,
-                        bonus_usdt: 0,
-                        referral_earned: 0,
-                        promo_earned: 0,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                    })
-                    .select()
-                    .single();
-
-                if (insertError) {
-                    console.error('❌ Failed to create user_balances:', insertError);
-                    return NextResponse.json({
-                        success: false,
-                        error: 'Failed to create user profile'
-                    }, { status: 500 });
-                }
-
-                console.log('✅ Created new user_balances record for:', userId);
-                return NextResponse.json({
-                    success: true,
-                    data: newUser
-                });
-            }
-
             return NextResponse.json({
                 success: false,
                 error: error.message
             }, { status: 500 });
         }
 
-        console.log('✅ User data fetched successfully:', user.email);
-        
-        const totalBalance = (user.funding_balance || 0) + 
-                           (user.bonus_usdt || 0) + 
-                           (user.referral_earned || 0) + 
-                           (user.promo_earned || 0);
+        if (!card) {
+            console.warn('⚠️ Card not found with ID:', cardId);
+            return NextResponse.json({
+                success: false,
+                error: 'Card not found'
+            }, { status: 404 });
+        }
+
+        console.log('✅ Card found:', { 
+            id: card.id, 
+            card_name: card.card_name, 
+            status: card.status,
+            user_id: card.user_id 
+        });
 
         return NextResponse.json({
             success: true,
-            data: {
-                ...user,
-                total_balance: totalBalance
-            }
+            data: card
         });
 
     } catch (error: any) {
-        console.error('❌ Error in GET /api/users/[id]:', error);
+        console.error('❌ Error in GET /api/cards/[id]:', error);
         return NextResponse.json({
             success: false,
-            error: error.message || 'Failed to fetch user'
+            error: error.message || 'Failed to fetch card'
+        }, { status: 500 });
+    }
+}
+
+// ============================================================
+// DELETE - Delete a card
+// ============================================================
+export async function DELETE(
+    request: NextRequest,
+    context: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id: cardId } = await context.params;
+        
+        console.log('🗑️ DELETE /api/cards/[id] - Card ID:', cardId);
+
+        if (!cardId) {
+            return NextResponse.json({
+                success: false,
+                error: 'Card ID is required'
+            }, { status: 400 });
+        }
+
+        const supabase = getSupabaseAdmin();
+
+        // Check if the card exists
+        const { data: card, error: findError } = await supabase
+            .from('cards')
+            .select('id, status, user_id')
+            .eq('id', cardId)
+            .maybeSingle();
+
+        if (findError) {
+            console.error('❌ Error finding card:', findError);
+            return NextResponse.json({
+                success: false,
+                error: findError.message
+            }, { status: 500 });
+        }
+
+        if (!card) {
+            console.warn('⚠️ Card not found for deletion:', cardId);
+            return NextResponse.json({
+                success: false,
+                error: 'Card not found'
+            }, { status: 404 });
+        }
+
+        // Only allow deletion of non-active, non-blocked cards
+        if (card.status === 'active' || card.status === 'blocked') {
+            console.warn('⚠️ Cannot delete active or blocked card:', card.status);
+            return NextResponse.json({
+                success: false,
+                error: 'Cannot delete an active or blocked card. Please block or deactivate it first.'
+            }, { status: 400 });
+        }
+
+        console.log('🗑️ Deleting card:', cardId, 'Current status:', card.status);
+
+        const { error: deleteError } = await supabase
+            .from('cards')
+            .delete()
+            .eq('id', cardId);
+
+        if (deleteError) {
+            console.error('❌ Delete error:', deleteError);
+            return NextResponse.json({
+                success: false,
+                error: deleteError.message
+            }, { status: 500 });
+        }
+
+        console.log('✅ Card deleted successfully:', cardId);
+
+        return NextResponse.json({
+            success: true,
+            message: 'Card deleted successfully'
+        });
+
+    } catch (error: any) {
+        console.error('❌ Error in DELETE /api/cards/[id]:', error);
+        return NextResponse.json({
+            success: false,
+            error: error.message || 'Failed to delete card'
         }, { status: 500 });
     }
 }
