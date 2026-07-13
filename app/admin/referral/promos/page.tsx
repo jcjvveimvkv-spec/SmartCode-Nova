@@ -81,7 +81,7 @@ export default function AdminPromoPage() {
           code: newPromo.code.toUpperCase(),
           description: newPromo.description,
           bonus_amount: newPromo.bonus_amount,
-          usage_limit: newPromo.usage_limit,
+          usage_limit: newPromo.usage_limit || 0,
           expires_at: newPromo.expires_at || null,
         }),
       });
@@ -175,7 +175,7 @@ export default function AdminPromoPage() {
           promo_id: editingPromo.id,
           description: editForm.description,
           bonus_amount: editForm.bonus_amount,
-          usage_limit: editForm.usage_limit,
+          usage_limit: editForm.usage_limit || 0,
           expires_at: editForm.expires_at || null,
           is_active: editForm.is_active,
         }),
@@ -424,8 +424,8 @@ export default function AdminPromoPage() {
                 <label className="block text-gray-400 text-sm mb-1">Bonus Amount (USDT) *</label>
                 <input
                   type="number"
-                  value={newPromo.bonus_amount}
-                  onChange={(e) => setNewPromo({...newPromo, bonus_amount: parseFloat(e.target.value)})}
+                  value={newPromo.bonus_amount ?? 0}
+                  onChange={(e) => setNewPromo({...newPromo, bonus_amount: parseFloat(e.target.value) || 0})}
                   className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none transition"
                 />
               </div>
@@ -434,8 +434,8 @@ export default function AdminPromoPage() {
                 <label className="block text-gray-400 text-sm mb-1">Usage Limit (0 = unlimited)</label>
                 <input
                   type="number"
-                  value={newPromo.usage_limit}
-                  onChange={(e) => setNewPromo({...newPromo, usage_limit: parseInt(e.target.value)})}
+                  value={newPromo.usage_limit ?? 0}
+                  onChange={(e) => setNewPromo({...newPromo, usage_limit: parseInt(e.target.value) || 0})}
                   className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none transition"
                 />
                 <p className="text-xs text-gray-500 mt-1">1 user = 1 use maximum</p>
@@ -510,7 +510,7 @@ export default function AdminPromoPage() {
                 <label className="block text-gray-400 text-sm mb-1">Bonus Amount (USDT)</label>
                 <input
                   type="number"
-                  value={editForm.bonus_amount}
+                  value={editForm.bonus_amount ?? 0}
                   onChange={(e) => setEditForm({...editForm, bonus_amount: parseFloat(e.target.value) || 0})}
                   className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none transition"
                 />
@@ -520,7 +520,7 @@ export default function AdminPromoPage() {
                 <label className="block text-gray-400 text-sm mb-1">Usage Limit (0 = unlimited)</label>
                 <input
                   type="number"
-                  value={editForm.usage_limit}
+                  value={editForm.usage_limit ?? 0}
                   onChange={(e) => setEditForm({...editForm, usage_limit: parseInt(e.target.value) || 0})}
                   className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none transition"
                 />
