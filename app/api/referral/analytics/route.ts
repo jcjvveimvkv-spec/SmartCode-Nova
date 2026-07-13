@@ -1,392 +1,311 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/app/lib/supabase-server';
-import { notifyUserPromoClaim } from '@/app/lib/notifications';
-
-// Helper to generate unique referral code
-function generateCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
 
 // ============================================================
-// GET: Fetch Referrals
+// GET: Fetch Referral Analytics
 // ============================================================
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const searchParams = request.nextUrl.searchParams;
+    const timeRange = searchParams.get('range') || 'month';
 
-    console.log('📡 GET /api/referral - UserId:', userId);
+    console.log('📊 Fetching referral analytics...', { timeRange });
 
-    // ✅ Create admin client INSIDE the handler
+    // ============================================================
+    // CREATE ADMIN CLIENT LAZILY INSIDE HANDLER
+    // ============================================================
     const supabase = getSupabaseAdmin();
 
-    let query = supabase
+    // ============================================================
+    // 1. Total Referrals
+    // ============================================================
+    const { count: totalReferrals, error: totalError } = await supabase
       .from('referrals')
-      .select(`
-        *,
-        referrer:user_balances!referrals_referrer_id_fkey(
-          user_id,
-          email,
-          full_name,
-          funding_balance,
-          bonus_usdt
-        ),
-        referred:user_balances!referrals_referred_id_fkey(
-          user_id,
-          email,
-          full_name,
-          funding_balance,
-          bonus_usdt
-        )
-      `)
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact', head: true });
 
-    if (userId) {
-      query = query.or(`referrer_id.eq.${userId},referred_id.eq.${userId}`);
+    if (totalError) {
+      console.error('Error fetching total referrals:', totalError);
     }
 
-    const { data: referrals, error } = await query;
+    // ============================================================
+    // 2. Total Payouts
+    // ============================================================
+    const { data: totalPayouts, error: payoutError } = await supabase
+      .from('referral_payouts')
+      .select('amount_usdt');
 
-    if (error) {
-      console.error('❌ Error fetching referrals:', error);
-      return NextResponse.json({
-        success: false,
-        error: error.message
-      }, { status: 500 });
+    if (payoutError) {
+      console.error('Error fetching payouts:', payoutError);
     }
 
-    console.log(`📊 Found ${referrals?.length || 0} referrals`);
-    return NextResponse.json({
-      success: true,
-      data: referrals || []
-    });
+    const totalPayoutAmount = totalPayouts?.reduce((sum: number, p: any) => sum + (p.amount_usdt || 0), 0) || 0;
 
-  } catch (error: any) {
-    console.error('❌ Error in GET /api/referral:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to fetch referrals'
-    }, { status: 500 });
-  }
-}
-
-// ============================================================
-// POST: Create a New Referral
-// ============================================================
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { referrerId, referredId, bonusAmount, referrerCode } = body;
-
-    console.log('📝 Creating referral:', { referrerId, referredId, bonusAmount, referrerCode });
-
-    if (!referrerId || !referredId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Referrer ID and Referred ID are required'
-      }, { status: 400 });
-    }
-
-    if (referrerId === referredId) {
-      return NextResponse.json({
-        success: false,
-        error: 'You cannot refer yourself'
-      }, { status: 400 });
-    }
-
-    // ✅ Create admin client INSIDE the handler
-    const supabase = getSupabaseAdmin();
-
-    // Check if referral already exists
-    const { data: existing, error: checkError } = await supabase
+    // ============================================================
+    // 3. Pending Referrals
+    // ============================================================
+    const { count: pendingReferrals, error: pendingError } = await supabase
       .from('referrals')
-      .select('id, status')
-      .eq('referrer_id', referrerId)
-      .eq('referred_id', referredId)
-      .maybeSingle();
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
 
-    if (existing) {
-      return NextResponse.json({
-        success: false,
-        error: 'Referral already exists',
-        data: existing
-      }, { status: 400 });
+    if (pendingError) {
+      console.error('Error fetching pending referrals:', pendingError);
     }
 
-    // Get referrer's referral code if not provided
-    let referralCode = referrerCode;
-    if (!referralCode) {
-      const { data: codeData } = await supabase
-        .from('user_referral_codes')
-        .select('code')
-        .eq('user_id', referrerId)
-        .single();
-      
-      referralCode = codeData?.code || null;
+    // ============================================================
+    // 4. Total Clicks
+    // ============================================================
+    const { data: clicks, error: clicksError } = await supabase
+      .from('user_referral_codes')
+      .select('total_clicks');
+
+    if (clicksError) {
+      console.error('Error fetching clicks:', clicksError);
     }
 
-    // Create referral
-    const bonusAmountValue = bonusAmount || 7;
-    const { data: referral, error } = await supabase
+    const totalClicks = clicks?.reduce((sum: number, c: any) => sum + (c.total_clicks || 0), 0) || 0;
+
+    // ============================================================
+    // 5. Total Signups (from referrals)
+    // ============================================================
+    const { data: signups, error: signupsError } = await supabase
+      .from('user_referral_codes')
+      .select('total_signups');
+
+    if (signupsError) {
+      console.error('Error fetching signups:', signupsError);
+    }
+
+    const totalSignups = signups?.reduce((sum: number, s: any) => sum + (s.total_signups || 0), 0) || 0;
+
+    // ============================================================
+    // 6. Conversion Rate
+    // ============================================================
+    const conversionRate = totalClicks > 0 ? ((totalSignups / totalClicks) * 100).toFixed(1) : 0;
+
+    // ============================================================
+    // 7. Paid Referrals Count
+    // ============================================================
+    const { count: paidReferralsCount, error: paidError } = await supabase
       .from('referrals')
-      .insert({
-        referrer_id: referrerId,
-        referred_id: referredId,
-        bonus_amount: bonusAmountValue,
-        status: 'pending',
-        referrer_code: referralCode,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'paid');
 
-    if (error) {
-      console.error('❌ Error creating referral:', error);
-      return NextResponse.json({
-        success: false,
-        error: error.message
-      }, { status: 500 });
+    if (paidError) {
+      console.error('Error fetching paid referrals:', paidError);
     }
 
-    console.log('✅ Referral created successfully:', referral.id);
+    const paidReferrals = paidReferralsCount ?? 0;
 
-    // Update referrer's referral code stats
-    if (referralCode) {
-      const { data: currentData } = await supabase
-        .from('user_referral_codes')
-        .select('total_signups')
-        .eq('code', referralCode)
-        .single();
-      
-      const currentSignups = currentData?.total_signups || 0;
-      
-      const { error: updateError } = await supabase
-        .from('user_referral_codes')
-        .update({
-          total_signups: currentSignups + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('code', referralCode);
+    // ============================================================
+    // 8. Average Payout
+    // ============================================================
+    const averagePayout = paidReferrals > 0 ? (totalPayoutAmount / paidReferrals).toFixed(2) : '0.00';
 
-      if (updateError) {
-        console.error('Error updating referral code stats:', updateError);
+    // ============================================================
+    // 9. Total Bonus Distributed
+    // ============================================================
+    const { data: bonusData } = await supabase
+      .from('user_balances')
+      .select('bonus_usdt')
+      .not('bonus_usdt', 'is', null);
+
+    const totalBonusDistributed = bonusData?.reduce((sum: number, b: any) => sum + (b.bonus_usdt || 0), 0) || 0;
+
+    // ============================================================
+    // 10. Promo Code Usage Stats
+    // ============================================================
+    const { data: promoUsage, error: promoUsageError } = await supabase
+      .from('promo_code_usage')
+      .select('bonus_amount');
+
+    if (promoUsageError) {
+      console.error('Error fetching promo usage:', promoUsageError);
+    }
+
+    const totalPromoBonus = promoUsage?.reduce((sum: number, p: any) => sum + (p.bonus_amount || 0), 0) || 0;
+    const totalPromoUses = promoUsage?.length || 0;
+
+    // ============================================================
+    // 11. Monthly Referrals (last 6 months)
+    // ============================================================
+    const { data: monthlyData, error: monthlyError } = await supabase
+      .from('referrals')
+      .select('created_at')
+      .order('created_at', { ascending: true });
+
+    if (monthlyError) {
+      console.error('Error fetching monthly data:', monthlyError);
+    }
+
+    // Group by month
+    const monthMap: Record<string, number> = {};
+    const now = new Date();
+    const sixMonthsAgo = new Date(now);
+    sixMonthsAgo.setMonth(now.getMonth() - 6);
+
+    monthlyData?.forEach((r: any) => {
+      const date = new Date(r.created_at);
+      if (date >= sixMonthsAgo) {
+        const key = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+        monthMap[key] = (monthMap[key] || 0) + 1;
       }
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: referral,
-      message: 'Referral created successfully'
     });
 
-  } catch (error: any) {
-    console.error('❌ Error in POST /api/referral:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to create referral'
-    }, { status: 500 });
-  }
-}
-
-// ============================================================
-// PUT: Update Referral Status
-// ============================================================
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { referralId, status, adminNote } = body;
-
-    console.log('📝 Updating referral:', { referralId, status, adminNote });
-
-    if (!referralId || !status) {
-      return NextResponse.json({
-        success: false,
-        error: 'Referral ID and status are required'
-      }, { status: 400 });
+    // Fill in missing months
+    const monthlyLabels: string[] = [];
+    const monthlyCounts: number[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now);
+      d.setMonth(now.getMonth() - i);
+      const key = d.toLocaleString('default', { month: 'short', year: 'numeric' });
+      monthlyLabels.push(key);
+      monthlyCounts.push(monthMap[key] || 0);
     }
 
-    if (!['pending', 'approved', 'paid', 'rejected'].includes(status)) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid status'
-      }, { status: 400 });
-    }
-
-    // ✅ Create admin client INSIDE the handler
-    const supabase = getSupabaseAdmin();
-
-    // Get the referral details
-    const { data: referral, error: fetchError } = await supabase
+    // ============================================================
+    // 12. Top Referrers
+    // ============================================================
+    const { data: referralsData } = await supabase
       .from('referrals')
-      .select('*, referrer:user_balances!referrals_referrer_id_fkey(email, full_name)')
-      .eq('id', referralId)
-      .single();
+      .select('referrer_id, status')
+      .eq('status', 'paid');
 
-    if (fetchError || !referral) {
-      console.error('❌ Referral not found:', fetchError);
-      return NextResponse.json({
-        success: false,
-        error: 'Referral not found'
-      }, { status: 404 });
-    }
+    // Group by referrer_id and count
+    const counts: Record<string, number> = {};
+    referralsData?.forEach((r: any) => {
+      counts[r.referrer_id] = (counts[r.referrer_id] || 0) + 1;
+    });
 
-    // Update referral status
-    const updateData: any = {
-      status: status,
-      updated_at: new Date().toISOString()
-    };
+    // Sort by count descending
+    const sortedReferrers = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([referrer_id, count]) => ({ referrer_id, count }));
 
-    if (status === 'paid') {
-      updateData.paid_at = new Date().toISOString();
-      
-      // Add bonus to referrer's balance
-      const bonusAmount = referral.bonus_amount || 7;
-      const { data: userBalance } = await supabase
-        .from('user_balances')
-        .select('bonus_usdt')
-        .eq('user_id', referral.referrer_id)
-        .single();
-      
-      const currentBonus = userBalance?.bonus_usdt || 0;
-      
-      const { error: bonusError } = await supabase
-        .from('user_balances')
-        .update({
-          bonus_usdt: currentBonus + bonusAmount,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', referral.referrer_id);
+    // Get user details
+    const referrerUserIds = sortedReferrers.map(s => s.referrer_id);
+    const { data: referrerUsers } = await supabase
+      .from('user_balances')
+      .select('user_id, email, full_name')
+      .in('user_id', referrerUserIds);
 
-      if (bonusError) {
-        console.error('Error adding bonus:', bonusError);
+    const referrerMap: Record<string, any> = {};
+    referrerUsers?.forEach((u: any) => {
+      referrerMap[u.user_id] = u;
+    });
+
+    const topReferrers = sortedReferrers.map((s: any) => ({
+      ...s,
+      email: referrerMap[s.referrer_id]?.email || 'Unknown',
+      full_name: referrerMap[s.referrer_id]?.full_name || 'Unknown',
+    }));
+
+    // ============================================================
+    // 13. Top Clickers
+    // ============================================================
+    const { data: topClicks } = await supabase
+      .from('user_referral_codes')
+      .select('user_id, total_clicks, code')
+      .order('total_clicks', { ascending: false })
+      .limit(5);
+
+    // Get user details for top clicks
+    const clickUserIds = topClicks?.map((c: any) => c.user_id) || [];
+    const { data: clickUsers } = await supabase
+      .from('user_balances')
+      .select('user_id, email, full_name')
+      .in('user_id', clickUserIds);
+
+    const clickUserMap: Record<string, any> = {};
+    clickUsers?.forEach((u: any) => {
+      clickUserMap[u.user_id] = u;
+    });
+
+    const topClickers = topClicks?.map((c: any) => ({
+      ...c,
+      email: clickUserMap[c.user_id]?.email || 'Unknown',
+      full_name: clickUserMap[c.user_id]?.full_name || 'Unknown',
+    })) || [];
+
+    // ============================================================
+    // 14. Total Referrers (unique users who have referred someone)
+    // ============================================================
+    const totalReferrers = Object.keys(counts).length;
+
+    // ============================================================
+    // 15. Top Earners
+    // ============================================================
+    const { data: earningsData } = await supabase
+      .from('referral_payouts')
+      .select('referrer_id, amount_usdt')
+      .eq('status', 'completed');
+
+    const earningsMap: Record<string, number> = {};
+    earningsData?.forEach((e: any) => {
+      earningsMap[e.referrer_id] = (earningsMap[e.referrer_id] || 0) + (e.amount_usdt || 0);
+    });
+
+    const sortedEarnings = Object.entries(earningsMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([user_id, amount]) => ({ user_id, amount }));
+
+    // Get user details for top earners
+    const earnerUserIds = sortedEarnings.map(s => s.user_id);
+    const { data: earnerUsers } = await supabase
+      .from('user_balances')
+      .select('user_id, email, full_name')
+      .in('user_id', earnerUserIds);
+
+    const earnerMap: Record<string, any> = {};
+    earnerUsers?.forEach((u: any) => {
+      earnerMap[u.user_id] = u;
+    });
+
+    const topEarners = sortedEarnings.map((s: any) => ({
+      ...s,
+      email: earnerMap[s.user_id]?.email || 'Unknown',
+      full_name: earnerMap[s.user_id]?.full_name || 'Unknown',
+    }));
+
+    // ============================================================
+    // RETURN ALL ANALYTICS DATA
+    // ============================================================
+    return NextResponse.json({
+      success: true,
+      data: {
+        // Stats Cards
+        totalReferrals: totalReferrals || 0,
+        totalPayouts: totalPayoutAmount,
+        pendingReferrals: pendingReferrals || 0,
+        conversionRate: conversionRate,
+        totalClicks: totalClicks,
+        totalSignups: totalSignups,
+        averagePayout: averagePayout,
+        totalBonusDistributed: totalBonusDistributed,
+        totalPromoBonus: totalPromoBonus,
+        totalPromoUses: totalPromoUses,
+        paidReferrals: paidReferrals,
+        totalReferrers: totalReferrers,
+
+        // Charts
+        monthlyLabels: monthlyLabels,
+        monthlyCounts: monthlyCounts,
+
+        // Top Lists
+        topReferrers: topReferrers,
+        topClickers: topClickers,
+        topEarners: topEarners,
       }
-
-      // Create payout record
-      const { error: payoutError } = await supabase
-        .from('referral_payouts')
-        .insert({
-          referral_id: referralId,
-          referrer_id: referral.referrer_id,
-          amount_usdt: bonusAmount,
-          status: 'completed',
-          paid_at: new Date().toISOString(),
-          created_at: new Date().toISOString()
-        });
-
-      if (payoutError) {
-        console.error('Error creating payout record:', payoutError);
-      }
-    }
-
-    if (adminNote) {
-      updateData.admin_notes = adminNote;
-    }
-
-    const { data: updatedReferral, error: updateError } = await supabase
-      .from('referrals')
-      .update(updateData)
-      .eq('id', referralId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('❌ Error updating referral:', updateError);
-      return NextResponse.json({
-        success: false,
-        error: updateError.message
-      }, { status: 500 });
-    }
-
-    console.log('✅ Referral updated successfully:', updatedReferral.id);
-
-    return NextResponse.json({
-      success: true,
-      data: updatedReferral,
-      message: `Referral ${status} successfully`
     });
 
   } catch (error: any) {
-    console.error('❌ Error in PUT /api/referral:', error);
+    console.error('❌ Error in analytics API:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Failed to update referral'
-    }, { status: 500 });
-  }
-}
-
-// ============================================================
-// DELETE: Delete a Referral
-// ============================================================
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const referralId = searchParams.get('id');
-
-    console.log('🗑️ DELETE /api/referral - ID:', referralId);
-
-    if (!referralId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Referral ID is required'
-      }, { status: 400 });
-    }
-
-    // ✅ Create admin client INSIDE the handler
-    const supabase = getSupabaseAdmin();
-
-    // Check if referral exists
-    const { data: existing, error: fetchError } = await supabase
-      .from('referrals')
-      .select('id, status')
-      .eq('id', referralId)
-      .single();
-
-    if (fetchError || !existing) {
-      console.error('❌ Referral not found:', fetchError);
-      return NextResponse.json({
-        success: false,
-        error: 'Referral not found'
-      }, { status: 404 });
-    }
-
-    // Only allow deletion of pending referrals
-    if (existing.status !== 'pending') {
-      return NextResponse.json({
-        success: false,
-        error: 'Only pending referrals can be deleted'
-      }, { status: 400 });
-    }
-
-    const { error: deleteError } = await supabase
-      .from('referrals')
-      .delete()
-      .eq('id', referralId);
-
-    if (deleteError) {
-      console.error('❌ Error deleting referral:', deleteError);
-      return NextResponse.json({
-        success: false,
-        error: deleteError.message
-      }, { status: 500 });
-    }
-
-    console.log('✅ Referral deleted successfully:', referralId);
-    return NextResponse.json({
-      success: true,
-      message: 'Referral deleted successfully'
-    });
-
-  } catch (error: any) {
-    console.error('❌ Error in DELETE /api/referral:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to delete referral'
+      error: error.message || 'Failed to fetch analytics',
+      data: null
     }, { status: 500 });
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Copy, RefreshCw, Plus, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '@/app/lib/supabase';
+import { Copy, RefreshCw, Plus, Users, DollarSign, Gift, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Referral {
   id: number;
@@ -12,7 +13,11 @@ interface Referral {
   amount_usdt: number;
   created_at: string;
   paid_at: string | null;
+  referrer_email?: string | null;
+  referrer_name?: string | null;
   referrer_display?: string;
+  referred_email?: string | null;
+  referred_name?: string | null;
   referred_display?: string;
 }
 
@@ -52,13 +57,12 @@ export default function AdminReferralPage() {
   const [userSearch, setUserSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const [userPagination, setUserPagination] = useState<PaginationState>({
     page: 1,
     totalPages: 1,
     totalItems: 0,
-    itemsPerPage: 5,
+    itemsPerPage: 10,
   });
 
   const [stats, setStats] = useState({
@@ -73,7 +77,6 @@ export default function AdminReferralPage() {
   }, []);
 
   const loadAllData = async () => {
-    setError(null);
     await Promise.all([
       loadReferralData(),
       loadAllUsers('', 1)
@@ -84,7 +87,6 @@ export default function AdminReferralPage() {
     try {
       console.log('🔍 Loading users...', { search, page });
       setLoading(true);
-      setError(null);
       
       const response = await fetch('/api/referral', {
         method: 'POST',
@@ -93,41 +95,28 @@ export default function AdminReferralPage() {
           action: 'get-users',
           search: search,
           page: page,
-          limit: 5
+          limit: 10
         }),
       });
 
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch users');
-      }
-
       if (result.success && result.data) {
-        console.log(`✅ Found ${result.data.length} users (total: ${result.total})`);
-        
         setUsers(result.data);
         setUserPagination({
           page: result.page || 1,
           totalPages: result.totalPages || 1,
           totalItems: result.total || 0,
-          itemsPerPage: result.limit || 5,
+          itemsPerPage: result.limit || 10,
         });
         setWarning(null);
       } else {
-        console.log('⚠️ No users found:', result);
         setUsers([]);
         setWarning(result.warning || 'No users found');
-        setUserPagination({
-          ...userPagination,
-          totalItems: 0,
-          totalPages: 0,
-        });
       }
-    } catch (error: any) {
-      console.error('❌ Error loading users:', error);
+    } catch (error) {
+      console.error('Error loading users:', error);
       setUsers([]);
-      setError(error.message || 'Error loading users. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -169,8 +158,6 @@ export default function AdminReferralPage() {
       }
     } catch (error) {
       console.error('Error loading referral data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -297,18 +284,6 @@ export default function AdminReferralPage() {
   return (
     <div className="p-8">
       <div className="max-w-7xl mx-auto">
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">
-            ❌ {error}
-          </div>
-        )}
-
-        {warning && !error && (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded-lg mb-6">
-            ⚠️ {warning}
-          </div>
-        )}
-
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-white">📊 Referral System Management</h1>
           <button
@@ -318,7 +293,6 @@ export default function AdminReferralPage() {
               setNewReferral({ userId: '', userEmail: '', bonusAmount: 7 });
               setUserSearch('');
               setWarning(null);
-              setError(null);
               loadAllUsers('', 1);
             }}
             className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
@@ -328,7 +302,12 @@ export default function AdminReferralPage() {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {warning && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded-lg mb-6">
+            ⚠️ {warning}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
             <p className="text-gray-400 text-sm">Total Referrals</p>
@@ -348,7 +327,6 @@ export default function AdminReferralPage() {
           </div>
         </div>
 
-        {/* Search */}
         <div className="bg-[#1a2332] rounded-xl border border-white/5 p-4 mb-6">
           <input
             type="text"
@@ -474,7 +452,7 @@ export default function AdminReferralPage() {
           )}
         </div>
 
-        {/* All Users with Referral Codes Table */}
+        {/* All Users Table */}
         <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden mt-8">
           <div className="px-6 py-4 border-b border-white/5">
             <div className="flex justify-between items-center">
@@ -482,7 +460,6 @@ export default function AdminReferralPage() {
                 <h2 className="text-lg font-semibold text-white">👥 All Users & Their Referral Codes</h2>
                 <p className="text-sm text-gray-400 mt-1">
                   Showing {users.length} of {userPagination.totalItems} users
-                  {userPagination.totalPages > 1 && ` (Page ${userPagination.page} of ${userPagination.totalPages})`}
                 </p>
               </div>
               <button
@@ -510,7 +487,7 @@ export default function AdminReferralPage() {
                 {users.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                      {error ? 'Error loading users' : 'No users found'}
+                      No users found
                     </td>
                   </tr>
                 ) : (
@@ -649,7 +626,7 @@ export default function AdminReferralPage() {
                   type="number"
                   value={newReferral.bonusAmount}
                   onChange={(e) => setNewReferral({...newReferral, bonusAmount: parseFloat(e.target.value)})}
-                  className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none transition"
+                  className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none"
                 />
               </div>
 
