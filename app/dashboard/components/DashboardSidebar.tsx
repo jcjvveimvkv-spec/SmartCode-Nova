@@ -10,6 +10,8 @@ import {
   ArrowRightLeft, Gift, TrendingUp
 } from 'lucide-react';
 
+// ✅ Remove notification imports - handled by layout now
+
 const menuItems = [
   { name: 'Overview', icon: LayoutDashboard, href: '/dashboard' },
   { name: 'My Bots', icon: Bot, href: '/dashboard/my-bots' },
@@ -65,6 +67,7 @@ export default function DashboardSidebar() {
 
   return (
     <>
+      {/* Mobile Menu Button */}
       <button 
         onClick={() => setIsMobileMenuOpen(true)} 
         className="lg:hidden fixed top-4 left-4 z-50 bg-[#10161f] text-white p-3 rounded-xl border border-white/5 shadow-xl"
@@ -72,6 +75,7 @@ export default function DashboardSidebar() {
         <Menu size={24} />
       </button>
 
+      {/* Mobile Overlay */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
@@ -84,6 +88,7 @@ export default function DashboardSidebar() {
         )}
       </AnimatePresence>
 
+      {/* Sidebar */}
       <aside className={`
         fixed top-0 left-0 bottom-0 z-50 bg-[#10161f] border-r border-white/5 transform transition-all duration-300 flex flex-col
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -91,6 +96,7 @@ export default function DashboardSidebar() {
         ${isCollapsed ? 'w-[80px]' : 'w-[260px]'}
       `}>
         
+        {/* Logo */}
         <div className={`p-6 border-b border-white/5 flex justify-between items-center ${isCollapsed ? 'justify-center' : ''}`}>
           <Link href="/dashboard" className={`flex items-center gap-3 cursor-pointer ${isCollapsed ? 'flex-col gap-1' : ''}`}>
             <img 
@@ -107,6 +113,7 @@ export default function DashboardSidebar() {
           </button>
         </div>
 
+        {/* Referral Stats */}
         {!isCollapsed && (referralCount > 0 || pendingBonus > 0) && (
           <div className="mx-4 mt-3 p-3 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20">
             <div className="flex justify-between text-sm">
@@ -120,6 +127,7 @@ export default function DashboardSidebar() {
           </div>
         )}
 
+        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {!isCollapsed && (
             <p className="text-xs uppercase text-[#8e96a3] font-semibold tracking-wider px-4 pt-4 pb-2">Navigation</p>
@@ -155,6 +163,7 @@ export default function DashboardSidebar() {
           })}
         </nav>
 
+        {/* Footer */}
         <div className="p-4 border-t border-white/5">
           <button 
             onClick={() => setIsCollapsed(!isCollapsed)}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/lib/supabase';
-import { Copy, RefreshCw, Plus, Users, DollarSign, Gift, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, RefreshCw, Plus, Users, DollarSign, Gift, Search, X, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 
 interface Referral {
   id: number;
@@ -11,6 +11,8 @@ interface Referral {
   referral_code: string;
   status: string;
   amount_usdt: number;
+  referred_deposit: number;
+  min_deposit_required: number;
   created_at: string;
   paid_at: string | null;
   referrer_email?: string | null;
@@ -57,6 +59,9 @@ export default function AdminReferralPage() {
   const [userSearch, setUserSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [warning, setWarning] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [userPagination, setUserPagination] = useState<PaginationState>({
     page: 1,
@@ -69,7 +74,9 @@ export default function AdminReferralPage() {
     totalReferrals: 0,
     totalPaid: 0,
     totalPending: 0,
+    totalApproved: 0, // NEW: Approved but not yet paid
     totalAmount: 0,
+    pendingPayoutAmount: 0, // NEW: Total amount ready for payout
   });
 
   useEffect(() => {
@@ -147,13 +154,21 @@ export default function AdminReferralPage() {
         const total = referralsData.length;
         const paid = referralsData.filter((r: any) => r.status === 'paid').length;
         const pending = referralsData.filter((r: any) => r.status === 'pending').length;
+        const approved = referralsData.filter((r: any) => r.status === 'approved').length;
         const amount = referralsData.reduce((sum: number, r: any) => sum + (r.amount_usdt || 7), 0);
+        
+        // Calculate pending payout amount (approved referrals waiting for payment)
+        const pendingPayoutAmount = referralsData
+          .filter((r: any) => r.status === 'approved')
+          .reduce((sum: number, r: any) => sum + (r.amount_usdt || 7), 0);
 
         setStats({
           totalReferrals: total,
           totalPaid: paid,
           totalPending: pending,
+          totalApproved: approved,
           totalAmount: amount,
+          pendingPayoutAmount: pendingPayoutAmount,
         });
       }
     } catch (error) {
@@ -161,7 +176,14 @@ export default function AdminReferralPage() {
     }
   };
 
+  // ============================================================
+  // UPDATE REFERRAL STATUS - MARK AS APPROVED (Ready for payout)
+  // ============================================================
   const updateReferralStatus = async (id: number, status: string) => {
+    setActionLoading(`status-${id}`);
+    setErrorMessage('');
+    setSuccessMessage('');
+    
     try {
       const response = await fetch('/api/referral', {
         method: 'POST',
@@ -176,21 +198,67 @@ export default function AdminReferralPage() {
       const result = await response.json();
 
       if (result.success) {
+        setSuccessMessage(`✅ Referral status updated to ${status}`);
         await loadReferralData();
+        setTimeout(() => setSuccessMessage(''), 3000);
       } else {
-        alert(result.error || 'Error updating referral');
+        setErrorMessage(result.error || 'Error updating referral');
       }
     } catch (error) {
       console.error('Error updating referral:', error);
-      alert('Error updating referral');
+      setErrorMessage('Error updating referral');
+    } finally {
+      setActionLoading(null);
     }
   };
 
+  // ============================================================
+  // PAY REFERRAL BONUS - NEW FUNCTION (GOLDEN RULE)
+  // ============================================================
+  const handlePayBonus = async (referralId: number) => {
+    setActionLoading(`pay-${referralId}`);
+    setErrorMessage('');
+    setSuccessMessage('');
+    
+    try {
+      const response = await fetch('/api/referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'pay-bonus',
+          referral_id: referralId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSuccessMessage(`✅ ${result.message}`);
+        await loadReferralData();
+        setTimeout(() => setSuccessMessage(''), 4000);
+      } else {
+        setErrorMessage(result.error || 'Error paying bonus');
+      }
+    } catch (error) {
+      console.error('Error paying bonus:', error);
+      setErrorMessage('Error paying bonus');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // ============================================================
+  // GENERATE REFERRAL LINK
+  // ============================================================
   const generateReferralLink = async () => {
     if (!newReferral.userId) {
-      alert('Please select a user');
+      setErrorMessage('Please select a user');
       return;
     }
+
+    setActionLoading('generate');
+    setErrorMessage('');
+    setSuccessMessage('');
 
     try {
       const response = await fetch('/api/referral', {
@@ -209,13 +277,16 @@ export default function AdminReferralPage() {
         const link = result.data.link || `${window.location.origin}/signup?ref=${result.data.code}`;
         setGeneratedLink(link);
         await loadAllData();
-        alert('✅ Referral link created successfully!');
+        setSuccessMessage('✅ Referral link created successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
       } else {
-        alert(result.error || 'Error generating referral link');
+        setErrorMessage(result.error || 'Error generating referral link');
       }
     } catch (error) {
       console.error('Error generating referral link:', error);
-      alert('Error generating referral link');
+      setErrorMessage('Error generating referral link');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -273,6 +344,49 @@ export default function AdminReferralPage() {
   const currentItems = filteredReferrals.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredReferrals.length / itemsPerPage);
 
+  // ============================================================
+  // GET STATUS COLOR AND LABEL
+  // ============================================================
+  const getStatusInfo = (status: string) => {
+    switch(status) {
+      case 'pending':
+        return { 
+          bg: 'bg-yellow-500/20', 
+          text: 'text-yellow-400',
+          label: '⏳ Pending (Waiting for Deposit)',
+          icon: <Clock size={14} className="text-yellow-400" />
+        };
+      case 'approved':
+        return { 
+          bg: 'bg-blue-500/20', 
+          text: 'text-blue-400',
+          label: '✅ Approved (Ready to Pay)',
+          icon: <CheckCircle size={14} className="text-blue-400" />
+        };
+      case 'paid':
+        return { 
+          bg: 'bg-green-500/20', 
+          text: 'text-green-400',
+          label: '💰 Paid',
+          icon: <CheckCircle size={14} className="text-green-400" />
+        };
+      case 'rejected':
+        return { 
+          bg: 'bg-red-500/20', 
+          text: 'text-red-400',
+          label: '❌ Rejected',
+          icon: <AlertCircle size={14} className="text-red-400" />
+        };
+      default:
+        return { 
+          bg: 'bg-gray-500/20', 
+          text: 'text-gray-400',
+          label: status,
+          icon: null
+        };
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -293,6 +407,8 @@ export default function AdminReferralPage() {
               setNewReferral({ userId: '', userEmail: '', bonusAmount: 7 });
               setUserSearch('');
               setWarning(null);
+              setErrorMessage('');
+              setSuccessMessage('');
               loadAllUsers('', 1);
             }}
             className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
@@ -302,35 +418,60 @@ export default function AdminReferralPage() {
           </button>
         </div>
 
+        {/* Messages */}
+        {successMessage && (
+          <div className="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+            <CheckCircle size={18} />
+            {successMessage}
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+            <AlertCircle size={18} />
+            {errorMessage}
+          </div>
+        )}
+
         {warning && (
           <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded-lg mb-6">
             ⚠️ {warning}
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
             <p className="text-gray-400 text-sm">Total Referrals</p>
             <p className="text-2xl font-bold text-white">{stats.totalReferrals}</p>
+          </div>
+          <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
+            <p className="text-gray-400 text-sm">Pending (Deposit)</p>
+            <p className="text-2xl font-bold text-yellow-500">{stats.totalPending}</p>
+          </div>
+          <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
+            <p className="text-gray-400 text-sm">Approved (Ready)</p>
+            <p className="text-2xl font-bold text-blue-500">{stats.totalApproved}</p>
           </div>
           <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
             <p className="text-gray-400 text-sm">Paid</p>
             <p className="text-2xl font-bold text-green-500">{stats.totalPaid}</p>
           </div>
           <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
-            <p className="text-gray-400 text-sm">Pending</p>
-            <p className="text-2xl font-bold text-yellow-500">{stats.totalPending}</p>
-          </div>
-          <div className="bg-[#1a2332] p-6 rounded-xl border border-white/5">
             <p className="text-gray-400 text-sm">Total USDT</p>
             <p className="text-2xl font-bold text-purple-400">{stats.totalAmount} USDT</p>
           </div>
+          <div className="bg-[#1a2332] p-6 rounded-xl border border-blue-500/20 bg-blue-500/5">
+            <p className="text-gray-400 text-sm">Ready to Pay Out</p>
+            <p className="text-2xl font-bold text-blue-400">{stats.pendingPayoutAmount} USDT</p>
+          </div>
         </div>
 
+        {/* Search */}
         <div className="bg-[#1a2332] rounded-xl border border-white/5 p-4 mb-6">
           <input
             type="text"
-            placeholder="Search by email or referral code..."
+            placeholder="Search by email, name, or referral code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none transition"
@@ -359,6 +500,7 @@ export default function AdminReferralPage() {
                   <th className="px-6 py-3">Code</th>
                   <th className="px-6 py-3">Date</th>
                   <th className="px-6 py-3">Amount</th>
+                  <th className="px-6 py-3">Deposit</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3">Action</th>
                 </tr>
@@ -366,7 +508,7 @@ export default function AdminReferralPage() {
               <tbody>
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-400">
                       No referrals found.
                     </td>
                   </tr>
@@ -374,6 +516,10 @@ export default function AdminReferralPage() {
                   currentItems.map((referral) => {
                     const referrerDisplay = referral.referrer_display || 'Unknown';
                     const referredDisplay = referral.referred_display || 'Unknown';
+                    const statusInfo = getStatusInfo(referral.status);
+                    const isPending = referral.status === 'pending';
+                    const isApproved = referral.status === 'approved';
+                    const isPaid = referral.status === 'paid';
                     
                     return (
                       <tr key={referral.id} className="border-b border-white/5 hover:bg-white/5 transition">
@@ -392,28 +538,68 @@ export default function AdminReferralPage() {
                         <td className="px-6 py-3 text-green-400 text-sm">
                           {referral.amount_usdt || 7} USDT
                         </td>
-                        <td className="px-6 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            referral.status === 'paid' 
-                              ? 'bg-green-500/20 text-green-400'
-                              : referral.status === 'pending'
-                              ? 'bg-yellow-500/20 text-yellow-400'
-                              : 'bg-gray-500/20 text-gray-400'
-                          }`}>
-                            {referral.status}
-                          </span>
+                        <td className="px-6 py-3 text-gray-400 text-sm">
+                          {referral.referred_deposit > 0 
+                            ? `${referral.referred_deposit} USDT` 
+                            : '—'}
+                          {referral.min_deposit_required > 0 && referral.referred_deposit === 0 && (
+                            <span className="text-xs text-yellow-500/70 block">
+                              Need {referral.min_deposit_required} USDT
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-3">
-                          {referral.status === 'pending' && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${statusInfo.bg} ${statusInfo.text} w-fit`}>
+                            {statusInfo.icon}
+                            {isPending && '⏳ Pending'}
+                            {isApproved && '✅ Ready'}
+                            {isPaid && '💰 Paid'}
+                            {referral.status === 'rejected' && '❌ Rejected'}
+                          </span>
+                          {isApproved && (
+                            <span className="text-[10px] text-blue-400/70 block mt-1">
+                              Deposit met: {referral.referred_deposit} USDT
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3">
+                          {/* PENDING: Waiting for deposit */}
+                          {isPending && (
+                            <span className="text-xs text-yellow-500/70 flex items-center gap-1">
+                              <Clock size={12} />
+                              Waiting for deposit...
+                            </span>
+                          )}
+                          
+                          {/* APPROVED: Ready for payout - SHOW PAY BONUS BUTTON */}
+                          {isApproved && (
                             <button
-                              onClick={() => updateReferralStatus(referral.id, 'paid')}
-                              className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded transition"
+                              onClick={() => handlePayBonus(referral.id)}
+                              disabled={!!actionLoading}
+                              className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded transition disabled:opacity-50 flex items-center gap-1"
                             >
-                              Mark Paid
+                              {actionLoading === `pay-${referral.id}` ? (
+                                <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full"></span>
+                              ) : (
+                                <>
+                                  <Gift size={12} />
+                                  Pay Bonus
+                                </>
+                              )}
                             </button>
                           )}
-                          {referral.status === 'paid' && (
-                            <span className="text-xs text-gray-500">✅ Complete</span>
+                          
+                          {/* PAID: Completed */}
+                          {isPaid && (
+                            <span className="text-xs text-green-500 flex items-center gap-1">
+                              <CheckCircle size={12} />
+                              Paid {referral.paid_at && new Date(referral.paid_at).toLocaleDateString()}
+                            </span>
+                          )}
+                          
+                          {/* REJECTED: Show rejected */}
+                          {referral.status === 'rejected' && (
+                            <span className="text-xs text-red-500">Rejected</span>
                           )}
                         </td>
                       </tr>
@@ -481,12 +667,13 @@ export default function AdminReferralPage() {
                   <th className="px-6 py-3">Referral Code</th>
                   <th className="px-6 py-3">Clicks</th>
                   <th className="px-6 py-3">Signups</th>
+                  <th className="px-6 py-3">Earned</th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-400">
                       No users found
                     </td>
                   </tr>
@@ -511,6 +698,9 @@ export default function AdminReferralPage() {
                       </td>
                       <td className="px-6 py-3 text-gray-400 text-sm">
                         {user.total_signups || 0}
+                      </td>
+                      <td className="px-6 py-3 text-green-400 text-sm">
+                        {user.total_earned_usdt || 0} USDT
                       </td>
                     </tr>
                   ))
@@ -558,6 +748,8 @@ export default function AdminReferralPage() {
                 onClick={() => {
                   setShowCreateModal(false);
                   setGeneratedLink('');
+                  setErrorMessage('');
+                  setSuccessMessage('');
                 }}
                 className="text-gray-400 hover:text-white transition"
               >
@@ -628,20 +820,30 @@ export default function AdminReferralPage() {
                   onChange={(e) => setNewReferral({...newReferral, bonusAmount: parseFloat(e.target.value)})}
                   className="w-full bg-[#0b0e14] text-white px-4 py-2 rounded-lg border border-white/10 focus:border-purple-500 focus:outline-none"
                 />
+                <p className="text-xs text-gray-500 mt-1">Default: 7 USDT</p>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={generateReferralLink}
-                  disabled={!newReferral.userId}
-                  className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!newReferral.userId || actionLoading === 'generate'}
+                  className="flex-1 bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Generate Link
+                  {actionLoading === 'generate' ? (
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                  ) : (
+                    <>
+                      <Gift size={16} />
+                      Generate Link
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
                     setGeneratedLink('');
+                    setErrorMessage('');
+                    setSuccessMessage('');
                   }}
                   className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition"
                 >

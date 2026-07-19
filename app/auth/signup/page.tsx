@@ -7,7 +7,16 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, CheckCircle2, XCircle, Calendar } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { notifyAdminNewSignup, notifyUserWelcome, notifyUserReferralBonus } from '@/app/lib/notifications';
+
+// ✅ Import from simple-notifications.ts (standalone file)
+import { 
+    notifyAdminNewSignup, 
+    notifyUserWelcome, 
+    notifyUserReferralBonus 
+} from '@/app/lib/simple-notifications';
+
+// ✅ Import from referral-notifications.ts
+import { createReferralRecord } from '@/app/lib/referral-notifications';
 
 // Dynamically import Select with NO SSR
 const Select = dynamic(
@@ -251,7 +260,7 @@ function generateReferralCode(): string {
 }
 
 // ============================================================
-// ADMIN SUPABASE CLIENT (bypasses RLS) - WITH ENV FALLBACK
+// ADMIN SUPABASE CLIENT (bypasses RLS)
 // ============================================================
 function getSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -490,7 +499,7 @@ export default function Signup() {
         console.log('✅ Referral code created for new user:', newUserReferralCode);
         
         // ============================================================
-        // NEW: SEND WELCOME NOTIFICATION
+        // SEND WELCOME NOTIFICATION
         // ============================================================
         try {
           await notifyUserWelcome(
@@ -510,9 +519,8 @@ export default function Signup() {
 
     // ============================================================
     // 4. RECORD REFERRAL (IF A REFERRAL CODE WAS USED)
+    // ✅ FOLLOWS GOLDEN RULE - NO BONUS ADDED YET!
     // ============================================================
-    let referralId: number | null = null;
-
     if (referralCode) {
       console.log('🔍 Referral code used during signup:', referralCode);
       
@@ -528,6 +536,7 @@ export default function Signup() {
         } else if (referrerData) {
           console.log('✅ Referrer found:', referrerData.user_id);
           
+          // ✅ Check if referral already exists
           const { data: existingReferral, error: checkRefError } = await getSupabaseAdmin()
             .from('referrals')
             .select('id')
@@ -541,17 +550,21 @@ export default function Signup() {
 
           if (existingReferral) {
             console.log('⚠️ Referral already exists, skipping duplicate');
-            referralId = existingReferral.id;
           } else {
+            // ✅ CORRECT: Create referral with status 'pending' - NO BONUS ADDED!
             const { data: referralRecord, error: referralInsertError } = await getSupabaseAdmin()
               .from('referrals')
               .insert({
                 referrer_id: referrerData.user_id,
                 referred_user_id: newUserId,
                 referral_code: referralCode,
-                status: 'pending',
+                status: 'pending', // ✅ CORRECT: NOT 'paid'!
                 amount_usdt: 7.00,
+                referred_deposit: 0,
+                min_deposit_required: 50,
                 is_read: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               })
               .select()
               .single();
@@ -559,10 +572,9 @@ export default function Signup() {
             if (referralInsertError) {
               console.error('❌ Error creating referral record:', referralInsertError);
             } else {
-              referralId = referralRecord.id;
-              console.log('✅ Referral record created for code:', referralCode);
+              console.log('✅ Referral record created with status: pending (waiting for deposit)');
               
-              // 4a. UPDATE REFERRER'S SIGNUP COUNT
+              // ✅ UPDATE REFERRER'S SIGNUP COUNT (but NOT balance!)
               const { data: currentCode, error: fetchCodeError } = await getSupabaseAdmin()
                 .from('user_referral_codes')
                 .select('total_signups')
@@ -580,101 +592,43 @@ export default function Signup() {
                 console.log('✅ Signup count updated to:', newCount);
               }
 
-              // 4b. CREDIT THE REFERRER'S BONUS
-              const { data: referrerBalance, error: balanceError } = await getSupabaseAdmin()
-                .from('user_balances')
-                .select('bonus_usdt, email, full_name')
-                .eq('user_id', referrerData.user_id)
-                .single();
+              // ✅ REMOVED: The bonus credit code has been REMOVED!
+              // The referrer will get the bonus ONLY when:
+              // 1. Referred user deposits 50+ USDT
+              // 2. Admin approves the referral in the admin panel
+              // 3. Admin clicks "Pay Bonus" button
 
-              if (balanceError) {
-                console.error('Error fetching referrer balance:', balanceError);
-              } else {
-                const currentBonus = referrerBalance?.bonus_usdt || 0;
-                const newBonus = currentBonus + 7;
-
-                await getSupabaseAdmin()
+              // ✅ Send notification to referrer (no bonus yet!)
+              try {
+                const { data: referrerInfo } = await getSupabaseAdmin()
                   .from('user_balances')
-                  .update({ 
-                    bonus_usdt: newBonus,
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('user_id', referrerData.user_id);
-
-                console.log('✅ Referrer bonus credited: 7 USDT');
-                
-                // Update referral status to paid
-                await getSupabaseAdmin()
-                  .from('referrals')
-                  .update({ 
-                    status: 'paid', 
-                    paid_at: new Date().toISOString()
-                  })
-                  .eq('id', referralId);
-
-                // Create payout record
-                const { data: existingPayout } = await getSupabaseAdmin()
-                  .from('referral_payouts')
-                  .select('*')
+                  .select('email, full_name')
                   .eq('user_id', referrerData.user_id)
-                  .eq('referral_id', referralId)
-                  .maybeSingle();
+                  .single();
 
-                if (!existingPayout) {
+                if (referrerInfo) {
+                  // Create in-app notification for referrer - NO BONUS ADDED YET
                   await getSupabaseAdmin()
-                    .from('referral_payouts')
+                    .from('notifications')
                     .insert({
                       user_id: referrerData.user_id,
-                      referral_id: referralId,
-                      amount_usdt: 7.00,
-                      status: 'approved',
-                      paid_at: new Date().toISOString(),
-                    });
-                  console.log('✅ Payout record created');
-                }
-
-                // ============================================================
-                // NEW: SEND REFERRAL BONUS NOTIFICATION
-                // ============================================================
-                try {
-                  const { data: totalRefs, count } = await getSupabaseAdmin()
-                    .from('referrals')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('referrer_id', referrerData.user_id);
-
-                  await notifyUserReferralBonus(
-                    referrerBalance?.email || '',
-                    referrerBalance?.full_name || 'User',
-                    formData.email,
-                    7,
-                    count || 0,
-                    referrerData.user_id
-                  );
-                  console.log('✅ Referral bonus notification sent');
-                } catch (bonusError) {
-                  console.error('❌ Referral bonus notification error:', bonusError);
-                }
-
-                // Create in-app notification for referrer
-                try {
-                  await getSupabaseAdmin()
-                    .from('user_notifications')
-                    .insert({
-                      user_id: referrerData.user_id,
-                      type: 'referral_bonus',
-                      title: '🎉 New Referral!',
-                      message: `${formData.fullName} signed up using your referral link! You earned 7 USDT.`,
+                      type: 'referral_pending',
+                      title: '📝 New Referral Signup',
+                      message: `${formData.fullName} signed up using your referral link! They need to deposit 50+ USDT for you to earn 7 USDT bonus.`,
                       data: {
                         referred_user: formData.email,
-                        bonus_amount: 7,
+                        referred_name: formData.fullName,
                         referral_code: referralCode,
+                        status: 'pending',
+                        min_deposit: 50
                       },
                       is_read: false,
+                      created_at: new Date().toISOString()
                     });
-                  console.log('✅ In-app notification created');
-                } catch (inAppError) {
-                  console.error('Error creating in-app notification:', inAppError);
+                  console.log('✅ In-app notification created (pending referral)');
                 }
+              } catch (inAppError) {
+                console.error('Error creating in-app notification:', inAppError);
               }
             }
           }
@@ -707,7 +661,7 @@ export default function Signup() {
           {referralCode && (
             <div className="mt-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
               <p className="text-green-400 text-sm">
-                🎉 You were referred! You'll both receive a <strong>7 USDT</strong> bonus!
+                🎉 You were referred! You'll both receive a <strong>7 USDT</strong> bonus after you deposit <strong>50+ USDT</strong>!
               </p>
               <p className="text-gray-500 text-xs mt-1">
                 Referral Code: <span className="font-mono font-bold text-blue-400">{referralCode}</span>

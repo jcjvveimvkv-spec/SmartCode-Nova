@@ -3,13 +3,16 @@ import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import DashboardSidebar from './DashboardSidebar';
+import DashboardSidebar from './components/DashboardSidebar';
 import { Bell, Search, User, LogOut, Settings as SettingsIcon, Wallet, X, Shield, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ToastProvider from '@/app/providers/ToastProvider';
 import ProfileRing from '@/app/components/ProfileRing';
 import MobileBottomNav from '@/app/components/MobileBottomNav';
-import { useTheme } from '@/app/providers/ThemeProvider'; // <--- NEW IMPORT
+import { useTheme } from '@/app/providers/ThemeProvider';
+
+// ✅ Import the separate NotificationBell component
+import NotificationBell from '@/app/components/NotificationBell';
 
 const ADMIN_EMAILS = ['smartcodenova@gmail.com', 'admin@smartcodenova.com'];
 
@@ -20,14 +23,11 @@ export default function DashboardLayout({
 }) {
   const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
   const router = useRouter();
-  const { theme, toggleTheme } = useTheme(); // <--- NEW HOOK
+  const { theme, toggleTheme } = useTheme();
 
   const [userData, setUserData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   useEffect(() => {
     async function fetchUser() {
@@ -44,16 +44,7 @@ export default function DashboardLayout({
         .eq('user_id', user.id)
         .single();
 
-      const { data: notifs } = await supabase
-        .from('user_notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
       setUserData({ ...user, ...profile });
-      setNotifications(notifs || []);
-      setUnreadCount(notifs?.filter((n: any) => !n.is_read).length || 0);
     }
     fetchUser();
   }, [supabase, router]);
@@ -61,12 +52,6 @@ export default function DashboardLayout({
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/');
-  };
-
-  const markAsRead = async (id: string) => {
-    await supabase.from('user_notifications').update({ is_read: true }).eq('id', id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-    setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   return (
@@ -82,7 +67,7 @@ export default function DashboardLayout({
 
           <div className="flex items-center gap-6 ml-auto">
             
-            {/* --- THEME TOGGLE BUTTON (Added next to Notification Bell) --- */}
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="text-gray-400 hover:text-white dark:hover:text-white light:hover:text-[#111827] transition"
@@ -90,42 +75,10 @@ export default function DashboardLayout({
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            {/* Notification Bell */}
-            <div className="relative">
-              <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative text-gray-400 hover:text-white transition">
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[8px] flex items-center justify-center border-2 border-[#141a24]">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
+            {/* ✅ Notification Bell - Using the separate component */}
+            <NotificationBell />
 
-              <AnimatePresence>
-                {isNotifOpen && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-12 w-80 bg-[#141a24] dark:bg-[#141a24] light:bg-[#ffffff] border border-white/5 light:border-gray-200 rounded-xl shadow-2xl overflow-hidden z-50 transition-colors duration-300">
-                    <div className="p-4 border-b border-white/5 light:border-gray-200 flex justify-between items-center">
-                      <span className="text-sm font-bold">Notifications</span>
-                      <button onClick={() => setIsNotifOpen(false)} className="text-[#8e96a3] hover:text-white"><X size={14} /></button>
-                    </div>
-                    <div className="max-h-60 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <p className="p-4 text-center text-[#8e96a3] text-sm">No notifications yet.</p>
-                      ) : (
-                        notifications.map((n) => (
-                          <div key={n.id} onClick={() => markAsRead(n.id)} className={`p-4 border-b border-white/5 light:border-gray-200 hover:bg-white/5 light:hover:bg-gray-100 cursor-pointer transition ${n.is_read ? 'opacity-60' : ''}`}>
-                            <p className="text-sm font-medium">{n.title}</p>
-                            <p className="text-xs text-[#8e96a3]">{n.message}</p>
-                            <p className="text-[10px] text-[#8e96a3] mt-1">{new Date(n.created_at).toLocaleTimeString()}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
+            {/* Admin Button */}
             {isAdmin && (
               <Link href="/admin">
                 <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#6366f1]/10 border border-[#6366f1]/30 text-[#6366f1] hover:bg-[#6366f1]/20 transition">
@@ -135,8 +88,12 @@ export default function DashboardLayout({
               </Link>
             )}
 
+            {/* Profile */}
             <div className="relative border-l border-white/10 pl-6">
-              <button onClick={() => setIsProfileOpen(!isProfileOpen)} className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
+              <button 
+                onClick={() => setIsProfileOpen(!isProfileOpen)} 
+                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition"
+              >
                 <ProfileRing src={userData?.avatar_url} size={36} />
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-white leading-tight">
@@ -148,7 +105,12 @@ export default function DashboardLayout({
 
               <AnimatePresence>
                 {isProfileOpen && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 top-14 w-48 bg-[#141a24] dark:bg-[#141a24] light:bg-[#ffffff] border border-white/5 light:border-gray-200 rounded-xl shadow-2xl overflow-hidden z-50 transition-colors duration-300">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    exit={{ opacity: 0, y: 10 }} 
+                    className="absolute right-0 top-14 w-48 bg-[#141a24] dark:bg-[#141a24] light:bg-[#ffffff] border border-white/5 light:border-gray-200 rounded-xl shadow-2xl overflow-hidden z-50 transition-colors duration-300"
+                  >
                     <Link href="/dashboard/settings" onClick={() => setIsProfileOpen(false)}>
                       <div className="flex items-center gap-3 p-3 hover:bg-white/5 light:hover:bg-gray-100 transition cursor-pointer border-b border-white/5 light:border-gray-200">
                         <SettingsIcon size={16} className="text-[#8e96a3]" />
