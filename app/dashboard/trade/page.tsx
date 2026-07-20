@@ -8,7 +8,8 @@ import {
   ShieldAlert, RefreshCw, ChevronLeft, ChevronRight, Download, X
 } from 'lucide-react';
 import TradeChartWidget from '../TradeChartWidget';
-import { sendTelegram, sendEmail } from '@/app/lib/notifications';
+// ✅ FIXED: Import from notification-export instead of notifications
+import { sendTelegram, sendEmail } from '@/app/lib/notification-export';
 
 // Helper to parse duration strings into milliseconds
 const parseDuration = (duration: string) => {

@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, ArrowDownToLine, CheckCircle, AlertCircle, ExternalLink, Loader2, X } from 'lucide-react';
-import { notifyAdminNewWithdrawal, notifyUserWithdrawalRequested } from '@/app/lib/notifications';
+// ✅ FIXED: Import from notification-export instead of notifications
+import { 
+    notifyAdminNewWithdrawal, 
+    notifyUserWithdrawalRequested,
+    createInAppNotification 
+} from '@/app/lib/notification-export';
 
 export default function WithdrawalPage() {
   const supabase = createBrowserClient(
@@ -83,17 +88,37 @@ export default function WithdrawalPage() {
     try {
       const { error: dbError } = await supabase.from('withdrawal_requests').insert({
         user_id: user.id,
+        user_email: user.email,
+        user_name: user.user_metadata?.full_name || user.email,
         amount: amountNum,
         fee_amount: fee,
         net_amount: netAmount,
         wallet_address: walletAddress,
         network: network,
-        currency: currency
+        currency: currency,
+        status: 'pending'
       });
 
       if (dbError) throw dbError;
 
-      // Admin Notification
+      // ✅ 1. CREATE IN-APP NOTIFICATION FOR USER
+      await createInAppNotification(
+        user.id,
+        'withdrawal_pending',
+        '📤 Withdrawal Request Submitted',
+        `Your withdrawal request of ${amountNum} USDT has been submitted for approval.`,
+        {
+          amount: amountNum,
+          fee: fee,
+          net_amount: netAmount,
+          wallet_address: walletAddress,
+          network: network,
+          status: 'pending'
+        }
+      );
+      console.log('✅ In-app notification created for user');
+
+      // ✅ 2. ADMIN NOTIFICATION (Email + Telegram)
       await notifyAdminNewWithdrawal(
         user.email,
         user.user_metadata?.full_name || user.email,
@@ -102,9 +127,9 @@ export default function WithdrawalPage() {
         netAmount,
         walletAddress
       );
+      console.log('✅ Admin notified');
 
-      // User Email & Telegram Notification
-      // FIX: Convert null to undefined using || undefined
+      // ✅ 3. USER NOTIFICATION (Email + Telegram)
       await notifyUserWithdrawalRequested(
         user.email,
         user.user_metadata?.full_name || user.email,
@@ -113,8 +138,9 @@ export default function WithdrawalPage() {
         netAmount,
         walletAddress,
         network,
-        telegramChatId || undefined // <--- THE FIX IS HERE
+        telegramChatId || undefined
       );
+      console.log('✅ User notified via email and Telegram');
 
       // Clear form and open the Modal
       setAmount('');
@@ -258,7 +284,7 @@ export default function WithdrawalPage() {
 
               <div className="p-6 space-y-4">
                 <div className="bg-[#0b0e14] rounded-xl border border-white/5 p-4 text-center">
-                  <p className="text-[#8e96a3] text-sm">You will receive a Telegram and Email notification once the admin approves this transaction.</p>
+                  <p className="text-[#8e96a3] text-sm">You will receive a Telegram, Email, and In-App notification once the admin approves this transaction.</p>
                 </div>
                 <div className="flex gap-3">
                   <button 

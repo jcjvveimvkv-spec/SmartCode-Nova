@@ -9,7 +9,8 @@ import {
   Calendar, AlertCircle, CheckCircle2,
   RefreshCw, Wallet, Copy, CheckCircle, Search, Trash2, Filter, ArrowUpDown
 } from 'lucide-react';
-import { sendTelegram, sendEmail } from '@/app/lib/notifications';
+// ✅ FIXED: Import from notification-export instead of notifications
+import { sendTelegram, sendEmail } from '@/app/lib/notification-export';
 
 // Helper to get image based on bot name
 const getBotImage = (name: string) => {

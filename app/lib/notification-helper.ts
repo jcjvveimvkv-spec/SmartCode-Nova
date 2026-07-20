@@ -23,6 +23,8 @@ export type NotificationType =
     | 'card_approved'
     | 'card_shipped'
     | 'card_activated'
+    | 'card_blocked'      // ✅ ADDED
+    | 'card_unblocked'    // ✅ ADDED
     | 'general';
 
 /**

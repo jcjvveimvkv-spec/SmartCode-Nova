@@ -7,8 +7,9 @@ import {
   User, Bell, Save, UploadCloud, 
   CheckCircle, AlertCircle, X, Send, Check, Loader2
 } from 'lucide-react';
+// ✅ This import is fine - telegram-connect.ts already uses notification-export
 import { notifyTelegramConnected, notifyTelegramConnectedTelegram } from '@/app/lib/telegram-connect';
-import ProfileRing from '@/app/components/ProfileRing'; // <--- NEW IMPORT
+import ProfileRing from '@/app/components/ProfileRing';
 
 export default function SettingsPage() {
   const supabase = createBrowserClient(
@@ -249,7 +250,6 @@ export default function SettingsPage() {
         <div className="bg-[#141a24] border border-white/5 rounded-2xl p-6 md:col-span-1">
           <div className="flex flex-col items-center text-center">
             
-            {/* UPDATED AVATAR WITH PROFILE RING */}
             <div 
               className="relative cursor-pointer"
               onClick={() => fileInputRef.current?.click()}

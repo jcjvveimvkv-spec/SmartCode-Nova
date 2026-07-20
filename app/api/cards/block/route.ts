@@ -5,7 +5,7 @@ import {
     getUserTelegramChatId, 
     sendTelegram, 
     sendEmail 
-} from '@/app/lib/notifications';
+} from '@/app/lib/notification-export';
 
 export async function POST(request: NextRequest) {
     try {
@@ -140,7 +140,7 @@ async function sendBlockNotification(email: string, name: string, cardName: stri
             </div>
         `;
         
-        await sendEmail(email, subject, html, 'info');
+        await sendEmail(email, subject, html);
 
         // In-App
         await createInAppNotification(
@@ -176,7 +176,7 @@ async function sendUnblockNotification(email: string, name: string, cardName: st
             </div>
         `;
         
-        await sendEmail(email, subject, html, 'info');
+        await sendEmail(email, subject, html);
 
         // In-App
         await createInAppNotification(

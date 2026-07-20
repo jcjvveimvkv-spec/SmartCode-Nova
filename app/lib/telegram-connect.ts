@@ -1,4 +1,5 @@
-import { sendEmail, sendTelegram } from './notifications';
+// /app/lib/telegram-connect.ts
+import { sendEmail, sendTelegram } from './notification-export';
 
 // --- TELEGRAM CONNECTION SUCCESS EMAIL ---
 export async function notifyTelegramConnected(userEmail: string, userName: string) {
@@ -27,7 +28,7 @@ export async function notifyTelegramConnected(userEmail: string, userName: strin
       </div>
     </div>
   `;
-  await sendEmail(userEmail, '✅ Telegram Connected!', emailHtml, 'info');
+  await sendEmail(userEmail, '✅ Telegram Connected!', emailHtml);
 }
 
 // --- TELEGRAM CONNECTION SUCCESS TELEGRAM MESSAGE ---
