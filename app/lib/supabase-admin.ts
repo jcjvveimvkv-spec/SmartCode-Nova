@@ -1,3 +1,4 @@
+// /app/lib/supabase-admin.ts
 import { createClient } from '@supabase/supabase-js';
 
 let supabaseAdminInstance: any = null;
@@ -5,10 +6,23 @@ let supabaseAdminInstance: any = null;
 export function getSupabaseAdmin() {
   if (!supabaseAdminInstance) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // ✅ Use service role key OR fallback to anon key
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase admin credentials. Please check your environment variables.');
+      console.warn('⚠️ Supabase credentials missing, using fallback client');
+      // Create a basic client with anon key as fallback
+      supabaseAdminInstance = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+      return supabaseAdminInstance;
     }
 
     supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {

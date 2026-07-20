@@ -1,3 +1,4 @@
+// /app/admin/approvals/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -247,7 +248,7 @@ export default function AdminApprovalsPage() {
   };
 
   // ============================================================
-  // REFERRAL ELIGIBILITY CHECK - FIXED
+  // REFERRAL ELIGIBILITY CHECK
   // ============================================================
   const checkReferralEligibility = async (userId: string, depositAmount: number) => {
     try {
@@ -270,7 +271,6 @@ export default function AdminApprovalsPage() {
         await refreshDeposits();
         return result;
       } else {
-        // Only show error if it's not "No pending referral found"
         if (result.error && !result.error.includes('No pending referral')) {
           setError(`⚠️ Referral: ${result.error}`);
         } else {
@@ -285,7 +285,40 @@ export default function AdminApprovalsPage() {
   };
 
   // ============================================================
-  // APPROVE DEPOSIT - FIXED
+  // SEND IN-APP NOTIFICATION VIA API (SIMPLIFIED)
+  // ============================================================
+  const sendInAppNotification = async (userId: string, type: string, title: string, message: string) => {
+    try {
+      console.log(`📤 Sending in-app notification: ${title} to user ${userId}`);
+      
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          type,
+          title,
+          message
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`✅ In-app notification sent: ${title}`);
+        return true;
+      } else {
+        console.error('❌ API notification error:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ In-app notification error:', error);
+      return false;
+    }
+  };
+
+  // ============================================================
+  // APPROVE DEPOSIT
   // ============================================================
   const handleApproveDeposit = async (id: string, userId: string, amount: number) => {
     setActionLoading(id);
@@ -293,14 +326,12 @@ export default function AdminApprovalsPage() {
     setSuccessMessage('');
     
     try {
-      // 1. Approve the deposit
       const { error: updateError } = await supabase
         .from('deposit_requests')
         .update({ status: 'approved' })
         .eq('id', id);
       if (updateError) throw updateError;
 
-      // 2. Update user's funding balance
       const { data: bal } = await supabase
         .from('user_balances')
         .select('funding_balance')
@@ -313,14 +344,8 @@ export default function AdminApprovalsPage() {
         .update({ funding_balance: newBalance })
         .eq('user_id', userId);
 
-      // 3. Remove from pending list
       setDeposits(prev => prev.filter(d => d.id !== id));
-      
-      // 4. ✅ Check referral eligibility with better logging
-      console.log(`🔍 Checking referral for user ${userId} with deposit ${amount} USDT`);
       await checkReferralEligibility(userId, amount);
-      
-      // 5. Refresh deposits
       await refreshDeposits();
 
     } catch (err: any) {
@@ -347,12 +372,15 @@ export default function AdminApprovalsPage() {
   };
 
   // ============================================================
-  // APPROVE WITHDRAWAL
+  // APPROVE WITHDRAWAL - WITH IN-APP NOTIFICATION VIA API
   // ============================================================
   const handleApproveWithdrawal = async (id: string, userId: string, amount: number) => {
     setActionLoading(id);
     setError('');
+    setSuccessMessage('');
+    
     try {
+      // 1. Check user balance
       const { data: bal } = await supabase
         .from('user_balances')
         .select('funding_balance')
@@ -366,11 +394,34 @@ export default function AdminApprovalsPage() {
         return;
       }
 
-      await supabase.from('withdrawal_requests').update({ status: 'approved' }).eq('id', id);
-      await supabase.from('user_balances').update({ funding_balance: currentBalance - amount }).eq('user_id', userId);
+      // 2. Update withdrawal status to approved
+      const { error: updateError } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'approved' })
+        .eq('id', id);
+      
+      if (updateError) throw updateError;
+
+      // 3. Deduct from user balance
+      await supabase
+        .from('user_balances')
+        .update({ funding_balance: currentBalance - amount })
+        .eq('user_id', userId);
+
+      // 4. Remove from pending list
       setWithdrawals(prev => prev.filter(w => w.id !== id));
       
+      // 5. ✅ SEND IN-APP NOTIFICATION VIA API
+      await sendInAppNotification(
+        userId,
+        'withdrawal_approved',
+        '✅ Withdrawal Approved',
+        `Your withdrawal of ${amount} USDT has been approved and processed.`
+      );
+
+      setSuccessMessage(`✅ Withdrawal of ${amount} USDT approved successfully! User notified.`);
       await refreshWithdrawals();
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -379,15 +430,36 @@ export default function AdminApprovalsPage() {
   };
 
   // ============================================================
-  // REJECT WITHDRAWAL
+  // REJECT WITHDRAWAL - WITH IN-APP NOTIFICATION VIA API
   // ============================================================
-  const handleRejectWithdrawal = async (id: string) => {
+  const handleRejectWithdrawal = async (id: string, userId: string, amount: number) => {
     setActionLoading(id);
     setError('');
+    setSuccessMessage('');
+    
     try {
-      await supabase.from('withdrawal_requests').update({ status: 'rejected' }).eq('id', id);
+      // 1. Update withdrawal status to rejected
+      const { error: updateError } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'rejected' })
+        .eq('id', id);
+      
+      if (updateError) throw updateError;
+
+      // 2. Remove from pending list
       setWithdrawals(prev => prev.filter(w => w.id !== id));
+      
+      // 3. ✅ SEND IN-APP NOTIFICATION VIA API
+      await sendInAppNotification(
+        userId,
+        'withdrawal_rejected',
+        '❌ Withdrawal Rejected',
+        `Your withdrawal of ${amount} USDT has been rejected.`
+      );
+
+      setSuccessMessage(`❌ Withdrawal of ${amount} USDT rejected. User notified.`);
       await refreshWithdrawals();
+
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -619,7 +691,7 @@ export default function AdminApprovalsPage() {
                   ))
               )}
 
-              {/* WITHDRAWALS */}
+              {/* WITHDRAWALS - WITH IN-APP NOTIFICATIONS VIA API */}
               {activeTab === 'withdrawals' && (
                 withdrawals.length === 0 ? 
                   <tr>
@@ -695,7 +767,7 @@ export default function AdminApprovalsPage() {
                             )}
                           </button>
                           <button 
-                            onClick={() => handleRejectWithdrawal(w.id)} 
+                            onClick={() => handleRejectWithdrawal(w.id, w.user_id, w.amount)} 
                             disabled={!!actionLoading} 
                             className="flex items-center justify-center gap-1.5 px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:bg-red-500/20 transition text-xs disabled:opacity-50 w-full sm:w-auto"
                           >

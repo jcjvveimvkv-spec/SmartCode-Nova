@@ -1,9 +1,8 @@
-// /app/components/NotificationBell.tsx
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { Bell, BellOff, X, CheckCircle, CheckCheck, Trash2, Clock } from 'lucide-react';
+import { Bell, BellOff, X, CheckCircle, CheckCheck, Trash2, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Notification {
@@ -27,15 +26,27 @@ export default function NotificationBell() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const isMounted = useRef(true);
 
     // Fetch user and notifications on mount
     useEffect(() => {
+        isMounted.current = true;
         fetchUserAndNotifications();
+        
         // Poll for new notifications every 30 seconds
-        const interval = setInterval(fetchUserAndNotifications, 30000);
-        return () => clearInterval(interval);
+        const interval = setInterval(() => {
+            if (isMounted.current) {
+                fetchUserAndNotifications();
+            }
+        }, 30000);
+        
+        return () => {
+            isMounted.current = false;
+            clearInterval(interval);
+        };
     }, []);
 
     // Close dropdown when clicking outside
@@ -50,7 +61,10 @@ export default function NotificationBell() {
     }, []);
 
     const fetchUserAndNotifications = async () => {
+        if (isRefreshing) return;
+        
         try {
+            setIsRefreshing(true);
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 setLoading(false);
@@ -69,16 +83,26 @@ export default function NotificationBell() {
 
             if (error) {
                 console.error('❌ Error fetching notifications:', error);
-                setNotifications([]);
+                if (isMounted.current) {
+                    setNotifications([]);
+                }
             } else {
-                setNotifications(data || []);
-                setUnreadCount(data?.filter(n => !n.is_read).length || 0);
+                if (isMounted.current) {
+                    const newData = data || [];
+                    setNotifications(newData);
+                    setUnreadCount(newData.filter(n => !n.is_read).length || 0);
+                }
             }
         } catch (error) {
             console.error('❌ Error fetching notifications:', error);
-            setNotifications([]);
+            if (isMounted.current) {
+                setNotifications([]);
+            }
         } finally {
-            setLoading(false);
+            if (isMounted.current) {
+                setIsRefreshing(false);
+                setLoading(false);
+            }
         }
     };
 
@@ -91,12 +115,14 @@ export default function NotificationBell() {
 
             if (error) throw error;
 
-            setNotifications(prev =>
-                prev.map(n =>
-                    n.id === notificationId ? { ...n, is_read: true } : n
-                )
-            );
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            if (isMounted.current) {
+                setNotifications(prev =>
+                    prev.map(n =>
+                        n.id === notificationId ? { ...n, is_read: true } : n
+                    )
+                );
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            }
         } catch (error) {
             console.error('❌ Error marking notification as read:', error);
         }
@@ -114,10 +140,12 @@ export default function NotificationBell() {
 
             if (error) throw error;
 
-            setNotifications(prev =>
-                prev.map(n => ({ ...n, is_read: true }))
-            );
-            setUnreadCount(0);
+            if (isMounted.current) {
+                setNotifications(prev =>
+                    prev.map(n => ({ ...n, is_read: true }))
+                );
+                setUnreadCount(0);
+            }
         } catch (error) {
             console.error('❌ Error marking all as read:', error);
         }
@@ -125,67 +153,82 @@ export default function NotificationBell() {
 
     const deleteNotification = async (notificationId: string, e: React.MouseEvent) => {
         e.stopPropagation();
+        
+        // Optimistic update - remove immediately
+        const deletedNotif = notifications.find(n => n.id === notificationId);
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        if (deletedNotif && !deletedNotif.is_read) {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        }
+
         try {
             const { error } = await supabase
                 .from('user_notifications')
                 .delete()
                 .eq('id', notificationId);
 
-            if (error) throw error;
-
-            setNotifications(prev => prev.filter(n => n.id !== notificationId));
-            // Update unread count if the deleted notification was unread
-            const deletedNotif = notifications.find(n => n.id === notificationId);
-            if (deletedNotif && !deletedNotif.is_read) {
-                setUnreadCount(prev => Math.max(0, prev - 1));
+            if (error) {
+                console.error('❌ Error deleting notification:', error);
+                // Revert on error - fetch fresh data
+                await fetchUserAndNotifications();
+            } else {
+                // Force a fresh fetch to ensure sync with server
+                console.log('✅ Notification deleted, refreshing...');
+                await fetchUserAndNotifications();
             }
         } catch (error) {
             console.error('❌ Error deleting notification:', error);
+            // Revert on error
+            await fetchUserAndNotifications();
         }
     };
 
     const getNotificationIcon = (type: string): string => {
         const iconMap: Record<string, string> = {
-            'welcome': '👋',
-            'deposit_pending': '⏳',
-            'deposit_approved': '✅',
-            'deposit_rejected': '❌',
-            'withdrawal_pending': '⏳',
-            'withdrawal_approved': '✅',
-            'withdrawal_rejected': '❌',
-            'bot_purchased': '🤖',
-            'bot_deployed': '🚀',
-            'bot_stopped': '🛑',
-            'referral_pending': '📝',
-            'referral_eligible': '✅',
-            'referral_paid': '🎉',
-            'referral_bonus': '💰',
-            'promo_claim': '🎁',
-            'card_application': '💳',
-            'card_approved': '✅',
-            'card_shipped': '📬',
-            'card_activated': '✅',
-            'general': '📢',
+            welcome: '👋',
+            deposit_pending: '⏳',
+            deposit_approved: '✅',
+            deposit_rejected: '❌',
+            withdrawal_pending: '⏳',
+            withdrawal_approved: '✅',
+            withdrawal_rejected: '❌',
+            bot_purchased: '🤖',
+            bot_deployed: '🚀',
+            bot_stopped: '🛑',
+            referral_pending: '📝',
+            referral_eligible: '✅',
+            referral_paid: '🎉',
+            referral_bonus: '💰',
+            promo_claim: '🎁',
+            card_application: '💳',
+            card_approved: '✅',
+            card_shipped: '📬',
+            card_activated: '✅',
+            card_blocked: '🔒',
+            card_unblocked: '🔓',
+            general: '📢',
         };
         return iconMap[type] || '📢';
     };
 
     const getNotificationColor = (type: string): string => {
         const colorMap: Record<string, string> = {
-            'welcome': 'border-purple-500/20 bg-purple-500/10',
-            'deposit_pending': 'border-yellow-500/20 bg-yellow-500/10',
-            'deposit_approved': 'border-green-500/20 bg-green-500/10',
-            'deposit_rejected': 'border-red-500/20 bg-red-500/10',
-            'withdrawal_pending': 'border-yellow-500/20 bg-yellow-500/10',
-            'withdrawal_approved': 'border-green-500/20 bg-green-500/10',
-            'withdrawal_rejected': 'border-red-500/20 bg-red-500/10',
-            'bot_purchased': 'border-blue-500/20 bg-blue-500/10',
-            'bot_deployed': 'border-cyan-500/20 bg-cyan-500/10',
-            'referral_paid': 'border-green-500/20 bg-green-500/10',
-            'referral_eligible': 'border-blue-500/20 bg-blue-500/10',
-            'referral_pending': 'border-yellow-500/20 bg-yellow-500/10',
-            'promo_claim': 'border-yellow-500/20 bg-yellow-500/10',
-            'card_approved': 'border-green-500/20 bg-green-500/10',
+            welcome: 'border-purple-500/20 bg-purple-500/10',
+            deposit_pending: 'border-yellow-500/20 bg-yellow-500/10',
+            deposit_approved: 'border-green-500/20 bg-green-500/10',
+            deposit_rejected: 'border-red-500/20 bg-red-500/10',
+            withdrawal_pending: 'border-yellow-500/20 bg-yellow-500/10',
+            withdrawal_approved: 'border-green-500/20 bg-green-500/10',
+            withdrawal_rejected: 'border-red-500/20 bg-red-500/10',
+            bot_purchased: 'border-blue-500/20 bg-blue-500/10',
+            bot_deployed: 'border-cyan-500/20 bg-cyan-500/10',
+            referral_paid: 'border-green-500/20 bg-green-500/10',
+            referral_eligible: 'border-blue-500/20 bg-blue-500/10',
+            referral_pending: 'border-yellow-500/20 bg-yellow-500/10',
+            promo_claim: 'border-yellow-500/20 bg-yellow-500/10',
+            card_approved: 'border-green-500/20 bg-green-500/10',
+            card_blocked: 'border-red-500/20 bg-red-500/10',
+            card_unblocked: 'border-green-500/20 bg-green-500/10',
         };
         return colorMap[type] || 'border-gray-500/20 bg-gray-500/10';
     };
@@ -198,10 +241,18 @@ export default function NotificationBell() {
         const diffHours = Math.floor(diffMs / 3600000);
         const diffDays = Math.floor(diffMs / 86400000);
 
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
+        if (diffMins < 1) {
+            return 'Just now';
+        }
+        if (diffMins < 60) {
+            return diffMins + 'm ago';
+        }
+        if (diffHours < 24) {
+            return diffHours + 'h ago';
+        }
+        if (diffDays < 7) {
+            return diffDays + 'd ago';
+        }
         return past.toLocaleDateString();
     };
 
@@ -255,6 +306,15 @@ export default function NotificationBell() {
                                 )}
                             </h3>
                             <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        fetchUserAndNotifications();
+                                    }}
+                                    className="text-xs text-gray-400 hover:text-white transition px-2 py-1 rounded hover:bg-white/5"
+                                    title="Refresh"
+                                >
+                                    <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                                </button>
                                 {unreadCount > 0 && (
                                     <button
                                         onClick={markAllAsRead}

@@ -53,8 +53,6 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [referralCount, setReferralCount] = useState(0);
-  const [pendingBonus, setPendingBonus] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
@@ -65,30 +63,6 @@ export default function DashboardSidebar() {
     );
     setActiveIndex(index);
   }, [pathname]);
-
-  useEffect(() => {
-    getUserAndReferralData();
-  }, []);
-
-  const getUserAndReferralData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: referrals } = await supabase
-          .from('referrals')
-          .select('*')
-          .eq('referrer_id', user.id);
-        
-        if (referrals) {
-          const pending = referrals.filter(r => r.status === 'pending');
-          setReferralCount(referrals.length);
-          setPendingBonus(pending.length * 7);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading referral data:', error);
-    }
-  };
 
   return (
     <>
@@ -115,7 +89,7 @@ export default function DashboardSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* Sidebar - Using inline animation instead of variants */}
       <motion.aside 
         animate={{
           width: isCollapsed ? 80 : 260,
@@ -186,26 +160,8 @@ export default function DashboardSidebar() {
           </motion.div>
         )}
 
-        {/* Referral Stats */}
-        {!isCollapsed && (referralCount > 0 || pendingBonus > 0) && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mx-4 mt-3 p-3 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg border border-purple-500/20"
-          >
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Referrals:</span>
-              <span className="text-white font-medium">{referralCount}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Pending Bonus:</span>
-              <span className="text-green-400 font-medium">{pendingBonus} USDT</span>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto relative">
+        {/* Navigation - Improved Scrolling */}
+        <nav className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-purple-500/20 hover:scrollbar-thumb-purple-500/40">
           {!isCollapsed && (
             <p className="text-[10px] uppercase text-[#8e96a3] font-bold tracking-wider px-4 pt-2 pb-3">
               Main Menu
@@ -218,7 +174,7 @@ export default function DashboardSidebar() {
               className="absolute left-3 right-3 h-11 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/10 border-l-2 border-purple-500"
               layoutId="activeIndicator"
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              style={{ top: `calc(${activeIndex * 52}px + ${!isCollapsed ? '60px' : '0px'})` }}
+              style={{ top: `calc(${activeIndex * 52}px + ${!isCollapsed ? '100px' : '0px'})` }}
             />
           )}
 
@@ -297,17 +253,6 @@ export default function DashboardSidebar() {
                         className="ml-auto w-1.5 h-1.5 rounded-full"
                         style={{ backgroundColor: item.color }}
                       />
-                    )}
-
-                    {/* Referral Badge */}
-                    {!isCollapsed && item.name === 'Referral Program' && referralCount > 0 && (
-                      <motion.span 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full"
-                      >
-                        {referralCount}
-                      </motion.span>
                     )}
                   </motion.div>
                 </Link>

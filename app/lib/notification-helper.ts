@@ -1,7 +1,7 @@
 // /app/lib/notification-helper.ts
 // Unified notification helper - uses user_notifications table
 
-import { getSupabaseAdmin } from './supabase-admin';
+import { createBrowserClient } from '@supabase/ssr';
 
 export type NotificationType = 
     | 'welcome'
@@ -23,9 +23,24 @@ export type NotificationType =
     | 'card_approved'
     | 'card_shipped'
     | 'card_activated'
-    | 'card_blocked'      // ✅ ADDED
-    | 'card_unblocked'    // ✅ ADDED
+    | 'card_blocked'
+    | 'card_unblocked'
     | 'general';
+
+/**
+ * Create a Supabase browser client
+ */
+function getSupabaseClient() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+        console.error('❌ Supabase credentials missing');
+        return null;
+    }
+    
+    return createBrowserClient(supabaseUrl, supabaseKey);
+}
 
 /**
  * Create an in-app notification
@@ -39,13 +54,16 @@ export async function createInAppNotification(
     data: any = {}
 ) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseClient();
         if (!supabase) {
             console.warn('⚠️ Skipping in-app notification - no Supabase client');
             return { success: false, error: 'No Supabase client' };
         }
 
-        const { error } = await supabase
+        console.log('📝 Creating in-app notification:', { userId, type, title, message });
+
+        // ✅ Try using the browser client directly
+        const { data: result, error } = await supabase
             .from('user_notifications')
             .insert({
                 user_id: userId,
@@ -55,15 +73,21 @@ export async function createInAppNotification(
                 data: data || {},
                 is_read: false,
                 created_at: new Date().toISOString()
-            });
+            })
+            .select();
 
         if (error) {
-            console.error('❌ Error creating in-app notification:', error);
+            console.error('❌ Supabase error:', {
+                code: error.code,
+                message: error.message,
+                details: error.details,
+                hint: error.hint
+            });
             return { success: false, error: error.message };
         }
 
-        console.log(`✅ In-app notification created: ${title} (${type}) for user ${userId}`);
-        return { success: true };
+        console.log(`✅ In-app notification created: ${title} for user ${userId}`);
+        return { success: true, data: result };
     } catch (error) {
         console.error('❌ In-app notification error:', error);
         return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -75,7 +99,7 @@ export async function createInAppNotification(
  */
 export async function markNotificationRead(notificationId: string) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseClient();
         if (!supabase) return { success: false };
 
         const { error } = await supabase
@@ -100,7 +124,7 @@ export async function markNotificationRead(notificationId: string) {
  */
 export async function markAllNotificationsRead(userId: string) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseClient();
         if (!supabase) return { success: false };
 
         const { error } = await supabase
@@ -126,7 +150,7 @@ export async function markAllNotificationsRead(userId: string) {
  */
 export async function getUserNotifications(userId: string, limit: number = 20) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseClient();
         if (!supabase) return { success: false, data: [] };
 
         const { data, error } = await supabase
@@ -153,7 +177,7 @@ export async function getUserNotifications(userId: string, limit: number = 20) {
  */
 export async function getUnreadNotificationCount(userId: string) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseClient();
         if (!supabase) return 0;
 
         const { count, error } = await supabase
@@ -179,7 +203,7 @@ export async function getUnreadNotificationCount(userId: string) {
  */
 export async function deleteNotification(notificationId: string) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getSupabaseClient();
         if (!supabase) return { success: false };
 
         const { error } = await supabase

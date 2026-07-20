@@ -1,3 +1,4 @@
+// /app/dashboard/layout.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
@@ -57,7 +58,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-[#0b0e14] dark:bg-[#0b0e14] light:bg-[#f3f4f6] text-white dark:text-white light:text-[#111827] flex font-sans w-full transition-colors duration-300">
       <DashboardSidebar />
-      <div className="flex-1 flex flex-col min-h-screen w-full relative">
+      <div className="flex-1 flex flex-col min-h-screen w-full ml-0 lg:ml-[260px] transition-all duration-300 relative">
         
         <header className="sticky top-0 z-30 bg-[#141a24]/95 dark:bg-[#141a24]/95 light:bg-[#ffffff]/95 backdrop-blur-xl border-b border-white/5 light:border-gray-200 px-6 py-4 flex justify-between items-center h-20 w-full transition-colors duration-300">
           <div className="hidden md:flex items-center bg-[#0b0e14] dark:bg-[#0b0e14] light:bg-[#f3f4f6] rounded-full px-4 py-2 border border-white/5 light:border-gray-200 w-64 transition-colors duration-300">
@@ -75,7 +76,7 @@ export default function DashboardLayout({
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            {/* ✅ Notification Bell - Using the separate component */}
+            {/* ✅ Notification Bell */}
             <NotificationBell />
 
             {/* Admin Button */}
