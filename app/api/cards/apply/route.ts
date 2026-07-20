@@ -1,3 +1,4 @@
+// /app/api/cards/apply/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/app/lib/supabase-server';
 
@@ -321,10 +322,10 @@ export async function POST(request: NextRequest) {
         }
 
         // ============================================================
-        // CREATE SUPABASE CLIENT LAZILY - INSIDE THE HANDLER
+        // CREATE SUPABASE CLIENT - AWAIT THE ASYNC FUNCTION
         // ============================================================
         console.log('🔐 Creating Supabase client...');
-        const supabase = await createClient();
+        const supabase = await createClient(); // ✅ This is the fix - await the async function
         console.log('✅ Supabase client created');
 
         // Get user data
