@@ -275,7 +275,6 @@ export default function Signup() {
   );
   const router = useRouter();
   const searchParams = useSearchParams();
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // Get referral code from URL
   const referralCode = searchParams.get('ref');
@@ -341,7 +340,44 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // ============================================================
+  // GOOGLE SIGN-IN
+  // ============================================================
+  const signInWithGoogle = async () => {
+    setGoogleLoading(true);
+    setError('');
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Google sign-in error:', error);
+        setError(error.message || 'Failed to sign in with Google');
+        setGoogleLoading(false);
+        return;
+      }
+
+      // If successful, the user will be redirected to Google's consent screen
+      // The callback will handle the rest
+      console.log('✅ Google sign-in initiated');
+    } catch (err: any) {
+      console.error('Error:', err);
+      setError(err.message || 'Failed to sign in with Google');
+      setGoogleLoading(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -349,12 +385,6 @@ export default function Signup() {
 
   const handleCountryChange = (selectedOption: any) => {
     setFormData({ ...formData, country: selectedOption });
-  };
-
-  const triggerCalendar = () => {
-    if (dateInputRef.current) {
-      dateInputRef.current.showPicker();
-    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -449,7 +479,6 @@ export default function Signup() {
     // 3. CREATE REFERRAL CODE FOR THE NEW USER (ALWAYS)
     // ============================================================
     let newUserReferralCode = '';
-    let referralCodeCreated = false;
 
     try {
       let isUnique = false;
@@ -479,7 +508,7 @@ export default function Signup() {
         newUserReferralCode = 'USR' + Date.now().toString(36).toUpperCase();
       }
 
-      const { data: newCodeData, error: codeError } = await getSupabaseAdmin()
+      const { error: codeError } = await getSupabaseAdmin()
         .from('user_referral_codes')
         .insert({
           user_id: newUserId,
@@ -488,14 +517,11 @@ export default function Signup() {
           total_signups: 0,
           total_earned_usdt: 0,
           share_count: 0
-        })
-        .select()
-        .single();
+        });
 
       if (codeError) {
         console.error('❌ Error creating referral code for new user:', codeError);
       } else {
-        referralCodeCreated = true;
         console.log('✅ Referral code created for new user:', newUserReferralCode);
         
         // ============================================================
@@ -552,7 +578,7 @@ export default function Signup() {
             console.log('⚠️ Referral already exists, skipping duplicate');
           } else {
             // ✅ CORRECT: Create referral with status 'pending' - NO BONUS ADDED!
-            const { data: referralRecord, error: referralInsertError } = await getSupabaseAdmin()
+            const { error: referralInsertError } = await getSupabaseAdmin()
               .from('referrals')
               .insert({
                 referrer_id: referrerData.user_id,
@@ -565,9 +591,7 @@ export default function Signup() {
                 is_read: false,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
-              })
-              .select()
-              .single();
+              });
 
             if (referralInsertError) {
               console.error('❌ Error creating referral record:', referralInsertError);
@@ -592,12 +616,6 @@ export default function Signup() {
                 console.log('✅ Signup count updated to:', newCount);
               }
 
-              // ✅ REMOVED: The bonus credit code has been REMOVED!
-              // The referrer will get the bonus ONLY when:
-              // 1. Referred user deposits 50+ USDT
-              // 2. Admin approves the referral in the admin panel
-              // 3. Admin clicks "Pay Bonus" button
-
               // ✅ Send notification to referrer (no bonus yet!)
               try {
                 const { data: referrerInfo } = await getSupabaseAdmin()
@@ -609,7 +627,7 @@ export default function Signup() {
                 if (referrerInfo) {
                   // Create in-app notification for referrer - NO BONUS ADDED YET
                   await getSupabaseAdmin()
-                    .from('notifications')
+                    .from('user_notifications')
                     .insert({
                       user_id: referrerData.user_id,
                       type: 'referral_pending',
@@ -668,6 +686,39 @@ export default function Signup() {
               </p>
             </div>
           )}
+        </div>
+
+        {/* ✅ GOOGLE SIGN-IN BUTTON */}
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={signInWithGoogle}
+            disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white text-gray-800 rounded-lg font-medium hover:bg-gray-100 transition disabled:opacity-50"
+          >
+            {googleLoading ? (
+              <span className="animate-spin rounded-full h-5 w-5 border-2 border-gray-800 border-t-transparent"></span>
+            ) : (
+              <>
+                <svg className="w-5 h-5" viewBox="0 0 48 48">
+                  <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                  <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                  <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                  <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                </svg>
+                Sign in with Google
+              </>
+            )}
+          </button>
+          
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-[#1a1a3e] text-gray-400">Or continue with email</span>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-5">
@@ -731,7 +782,6 @@ export default function Signup() {
               <label className="block text-sm font-medium text-gray-300 mb-2">Date of Birth *</label>
               <div className="relative flex items-center">
                 <input
-                  ref={dateInputRef}
                   type="date"
                   name="dob"
                   required
@@ -739,13 +789,6 @@ export default function Signup() {
                   onChange={handleChange}
                   className="w-full px-4 py-3 bg-[#0a0a2a] border border-blue-500/20 rounded-lg text-white focus:outline-none focus:border-blue-500"
                 />
-                <button 
-                  type="button" 
-                  onClick={triggerCalendar}
-                  className="absolute right-3 text-gray-400 hover:text-white"
-                >
-                  <Calendar size={20} />
-                </button>
               </div>
             </div>
           </div>
