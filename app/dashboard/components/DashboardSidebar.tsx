@@ -6,22 +6,22 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/app/lib/supabase';
-import { 
-  LayoutDashboard, 
-  Bot, 
-  LineChart, 
-  BarChart3, 
-  Wallet, 
-  History, 
-  ShieldCheck, 
-  Settings, 
-  Menu, 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  LayoutDashboard,
+  Bot,
+  LineChart,
+  BarChart3,
+  Wallet,
+  History,
+  ShieldCheck,
+  Settings,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
   Users,
-  ArrowRightLeft, 
-  Gift, 
+  ArrowRightLeft,
+  Gift,
   CreditCard,
   Sparkles,
   LogOut,
@@ -37,10 +37,10 @@ const menuItems = [
   { name: 'Transfer', icon: ArrowRightLeft, href: '/dashboard/transfer', color: '#ec4899' },
   { name: 'Trade History', icon: History, href: '/dashboard/transactions', color: '#f472b6' },
   { name: 'My Cards', icon: CreditCard, href: '/dashboard/cards', color: '#f97316' },
-  { 
-    name: 'Referral Program', 
-    icon: Gift, 
-    href: '/dashboard/referral', 
+  {
+    name: 'Referral Program',
+    icon: Gift,
+    href: '/dashboard/referral',
     color: '#ef4444',
     description: 'Earn 7 USDT per referral'
   },
@@ -55,6 +55,8 @@ export default function DashboardSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(-1);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  // ✅ FIX: track whether we're on mobile so we can disable "collapse" mode there
+  const [isMobile, setIsMobile] = useState(false);
 
   // Find active index on mount and path change
   useEffect(() => {
@@ -64,14 +66,49 @@ export default function DashboardSidebar() {
     setActiveIndex(index);
   }, [pathname]);
 
+  // ✅ FIX: detect mobile viewport + auto-close menu when resizing up
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+      if (!e.matches) setIsMobileMenuOpen(false); // leaving mobile → close drawer
+    };
+    handleChange(mq);
+    mq.addEventListener('change', handleChange);
+    return () => mq.removeEventListener('change', handleChange);
+  }, []);
+
+  // ✅ FIX: close on route change (safety net) + ESC key + body scroll lock
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [isMobileMenuOpen]);
+
+  // ✅ FIX: on mobile we never want the sidebar "collapsed" — always full width drawer
+  const effectiveCollapsed = isMobile ? false : isCollapsed;
+
   return (
     <>
       {/* Mobile Menu Button */}
-      <motion.button 
+      <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setIsMobileMenuOpen(true)} 
-        className="lg:hidden fixed top-4 left-4 z-50 bg-gradient-to-br from-[#1a2332] to-[#10161f] text-white p-3 rounded-xl border border-white/10 shadow-xl shadow-purple-500/10 backdrop-blur-xl"
+        onClick={() => setIsMobileMenuOpen(true)}
+        aria-label="Open menu"
+        className="lg:hidden fixed top-4 left-4 z-[60] bg-gradient-to-br from-[#1a2332] to-[#10161f] text-white p-3 rounded-xl border border-white/10 shadow-xl shadow-purple-500/10 backdrop-blur-xl"
       >
         <Menu size={24} />
       </motion.button>
@@ -89,14 +126,15 @@ export default function DashboardSidebar() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar - Using inline animation instead of variants */}
-      <motion.aside 
+      {/* Sidebar */}
+      <motion.aside
         animate={{
-          width: isCollapsed ? 80 : 260,
+          // ✅ FIX: on mobile always render at 260 (drawer). Desktop uses collapse state.
+          width: effectiveCollapsed ? 80 : 260,
         }}
-        transition={{ 
-          duration: 0.3, 
-          ease: [0.4, 0, 0.2, 1] 
+        transition={{
+          duration: 0.3,
+          ease: [0.4, 0, 0.2, 1]
         }}
         className={`
           fixed top-0 left-0 bottom-0 z-50
@@ -104,29 +142,30 @@ export default function DashboardSidebar() {
           border-r border-white/5
           flex flex-col
           shadow-2xl shadow-purple-500/5
+          max-w-[85vw] md:max-w-[320px]
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         {/* Glow Effect */}
         <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-transparent pointer-events-none" />
-        
+
         {/* Logo */}
-        <div className={`p-6 border-b border-white/5 flex justify-between items-center relative ${isCollapsed ? 'justify-center' : ''}`}>
-          <Link href="/dashboard" className={`flex items-center gap-3 cursor-pointer ${isCollapsed ? 'flex-col gap-1' : ''}`}>
+        <div className={`p-6 border-b border-white/5 flex justify-between items-center relative ${effectiveCollapsed ? 'justify-center' : ''}`}>
+          <Link href="/dashboard" className={`flex items-center gap-3 cursor-pointer ${effectiveCollapsed ? 'flex-col gap-1' : ''}`}>
             <motion.div
               whileHover={{ rotate: -5, scale: 1.05 }}
               transition={{ duration: 0.2 }}
               className="relative"
             >
               <div className="absolute inset-0 rounded-full bg-purple-500/30 blur-xl animate-pulse" />
-              <img 
-                src="https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/logo/logo.png" 
-                alt="SmartCodeNova" 
-                className="h-9 w-auto object-contain relative z-10" 
+              <img
+                src="https://texuzrwyjecjxkrnemeg.supabase.co/storage/v1/object/public/logo/logo.png"
+                alt="SmartCodeNova"
+                className="h-9 w-auto object-contain relative z-10"
               />
             </motion.div>
-            {!isCollapsed && (
-              <motion.span 
+            {!effectiveCollapsed && (
+              <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-purple-300 bg-clip-text text-transparent"
@@ -135,14 +174,18 @@ export default function DashboardSidebar() {
               </motion.span>
             )}
           </Link>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-gray-400 hover:text-white transition">
+          <button
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-label="Close menu"
+            className="lg:hidden text-gray-400 hover:text-white transition"
+          >
             <X size={24} />
           </button>
         </div>
 
         {/* User Status Badge */}
-        {!isCollapsed && (
-          <motion.div 
+        {!effectiveCollapsed && (
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mx-4 mt-4 p-3 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-xl border border-purple-500/20"
@@ -160,21 +203,21 @@ export default function DashboardSidebar() {
           </motion.div>
         )}
 
-        {/* Navigation - Improved Scrolling */}
+        {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-purple-500/20 hover:scrollbar-thumb-purple-500/40">
-          {!isCollapsed && (
+          {!effectiveCollapsed && (
             <p className="text-[10px] uppercase text-[#8e96a3] font-bold tracking-wider px-4 pt-2 pb-3">
               Main Menu
             </p>
           )}
 
-          {/* Active Indicator Background */}
-          {!isCollapsed && activeIndex >= 0 && (
+          {/* Active Indicator Background — desktop only (position math was designed for it) */}
+          {!effectiveCollapsed && activeIndex >= 0 && !isMobile && (
             <motion.div
               className="absolute left-3 right-3 h-11 rounded-lg bg-gradient-to-r from-purple-500/20 to-blue-500/10 border-l-2 border-purple-500"
               layoutId="activeIndicator"
               transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              style={{ top: `calc(${activeIndex * 52}px + ${!isCollapsed ? '100px' : '0px'})` }}
+              style={{ top: `calc(${activeIndex * 52}px + 100px)` }}
             />
           )}
 
@@ -182,7 +225,7 @@ export default function DashboardSidebar() {
             const IconComponent = item.icon;
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href));
             const isHovered = hoveredItem === item.href;
-            
+
             return (
               <motion.div
                 key={item.href}
@@ -193,19 +236,19 @@ export default function DashboardSidebar() {
                 onMouseLeave={() => setHoveredItem(null)}
                 className="relative"
               >
-                <Link 
-                  href={item.href} 
+                <Link
+                  href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="block"
                 >
-                  <motion.div 
-                    whileHover={{ x: isCollapsed ? 0 : 4 }}
+                  <motion.div
+                    whileHover={{ x: effectiveCollapsed ? 0 : 4 }}
                     whileTap={{ scale: 0.97 }}
                     className={`
                       flex items-center gap-4 px-4 py-2.5 rounded-lg transition-all duration-200 cursor-pointer relative
-                      ${isActive && !isCollapsed ? 'text-white' : ''}
-                      ${isHovered && !isActive && !isCollapsed ? 'text-white' : ''}
-                      ${isCollapsed ? 'justify-center px-2' : ''}
+                      ${isActive && !effectiveCollapsed ? 'text-white' : ''}
+                      ${isHovered && !isActive && !effectiveCollapsed ? 'text-white' : ''}
+                      ${effectiveCollapsed ? 'justify-center px-2' : ''}
                     `}
                   >
                     {/* Icon with glow */}
@@ -214,16 +257,16 @@ export default function DashboardSidebar() {
                         absolute inset-0 rounded-full blur-xl transition-opacity duration-300
                         ${isActive ? 'opacity-100' : 'opacity-0'}
                       `} style={{ backgroundColor: item.color }} />
-                      <IconComponent 
-                        size={20} 
+                      <IconComponent
+                        size={20}
                         className={`relative z-10 transition-all duration-300 ${isActive || isHovered ? 'scale-110' : ''}`}
-                        style={{ 
+                        style={{
                           color: isActive ? item.color : (isHovered ? item.color : '#8e96a3'),
                           filter: isActive ? `drop-shadow(0 0 8px ${item.color}40)` : 'none'
                         }}
                       />
-                      {isActive && !isCollapsed && (
-                        <motion.div 
+                      {isActive && !effectiveCollapsed && (
+                        <motion.div
                           className="absolute -right-2 top-1/2 -translate-y-1/2 w-1 h-6 rounded-full"
                           style={{ backgroundColor: item.color }}
                           layoutId="activeDot"
@@ -232,7 +275,7 @@ export default function DashboardSidebar() {
                       )}
                     </div>
 
-                    {!isCollapsed && (
+                    {!effectiveCollapsed && (
                       <div className="flex flex-col flex-1">
                         <span className={`font-medium text-sm whitespace-nowrap transition-colors duration-200 ${
                           isActive ? 'text-white' : (isHovered ? 'text-white' : 'text-[#8e96a3]')
@@ -245,9 +288,8 @@ export default function DashboardSidebar() {
                       </div>
                     )}
 
-                    {/* Active glow badge */}
-                    {isActive && !isCollapsed && (
-                      <motion.div 
+                    {isActive && !effectiveCollapsed && (
+                      <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         className="ml-auto w-1.5 h-1.5 rounded-full"
@@ -263,27 +305,27 @@ export default function DashboardSidebar() {
 
         {/* Bottom Section */}
         <div className="p-4 border-t border-white/5 space-y-2">
-          {/* Logout Button */}
-          <motion.button 
-            whileHover={{ x: isCollapsed ? 0 : 4 }}
+          {/* Logout */}
+          <motion.button
+            whileHover={{ x: effectiveCollapsed ? 0 : 4 }}
             whileTap={{ scale: 0.97 }}
             className={`
               w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
               text-[#8e96a3] hover:text-red-400 hover:bg-red-500/10
-              ${isCollapsed ? 'justify-center' : ''}
+              ${effectiveCollapsed ? 'justify-center' : ''}
             `}
           >
             <LogOut size={20} />
-            {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
+            {!effectiveCollapsed && <span className="text-sm font-medium">Logout</span>}
           </motion.button>
 
-          {/* Collapse Button */}
-          <motion.button 
+          {/* Collapse Button — hidden on mobile (drawer is always full) */}
+          <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={`
-              w-full flex items-center justify-center p-2 rounded-lg transition-all duration-200
+              hidden lg:flex w-full items-center justify-center p-2 rounded-lg transition-all duration-200
               bg-white/5 hover:bg-white/10 border border-white/5
               text-gray-400 hover:text-white
             `}
@@ -302,4 +344,4 @@ export default function DashboardSidebar() {
       </motion.aside>
     </>
   );
-}
+      }
