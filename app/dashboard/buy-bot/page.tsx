@@ -140,7 +140,7 @@ export default function BotStorePage() {
       // 2. Deduct funds
       await supabase.from('user_balances').update({ funding_balance: fundingBalance - investmentAmount }).eq('user_id', user.id);
 
-      // 3. Insert bot with receipt_data and quick deploy flag
+      // 3. Insert bot with receipt_data, quick deploy flag, and duration
       const { data: newBot, error: insertError } = await supabase
         .from('active_bots')
         .insert({
@@ -149,6 +149,7 @@ export default function BotStorePage() {
           invested_usdt: investmentAmount,
           current_value_usdt: investmentAmount,
           profit_percent: bot.profit_percent,
+          duration: bot.duration,
           status: 'Active',
           license_key: licenseKey,
           is_deployed: isQuickDeploy, // ✅ QUICK DEPLOY LOGIC
@@ -438,41 +439,4 @@ export default function BotStorePage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-[#0b0e14] border-b border-white/5 text-[#8e96a3]">
                 <tr>
-                  <th className="px-6 py-3">Bot</th>
-                  <th className="px-6 py-3">Investment</th>
-                  <th className="px-6 py-3">License Key</th>
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3">Receipt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchaseHistory.map((item, idx) => {
-                  const image = bots.find(b => b.name === item.bot_name)?.image_url || '';
-                  return (
-                    <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
-                      <td className="px-6 py-3 flex items-center gap-2">
-                        {image && <img src={image} alt={item.bot_name} className="w-8 h-8 rounded object-cover" />}
-                        <span className="font-medium">{item.bot_name}</span>
-                      </td>
-                      <td className="px-6 py-3 font-bold text-green-400">{item.invested_usdt} USDT</td>
-                      <td className="px-6 py-3 font-mono text-[#f59e0b] text-xs">{item.license_key}</td>
-                      <td className="px-6 py-3 text-[#8e96a3] text-xs">{new Date(item.created_at).toLocaleDateString()}</td>
-                      <td className="px-6 py-3">
-                        <button 
-                          onClick={() => handleViewReceipt(item)}
-                          className="px-3 py-1 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-lg text-[#6366f1] text-xs hover:bg-[#6366f1]/20 transition"
-                        >
-                          View Receipt
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+                 
