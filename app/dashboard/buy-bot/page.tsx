@@ -439,4 +439,54 @@ export default function BotStorePage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-[#0b0e14] border-b border-white/5 text-[#8e96a3]">
                 <tr>
-                 
+                  <th className="px-6 py-3">Bot</th>
+                  <th className="px-6 py-3">Invested</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3 text-right">Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchaseHistory.map((bot) => (
+                  <tr key={bot.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {bot.receipt_data?.botImage && (
+                          <img src={bot.receipt_data.botImage} alt={bot.bot_name} className="w-9 h-9 rounded-lg object-cover border border-white/5" />
+                        )}
+                        <span className="font-medium text-white">{bot.bot_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-blue-400 font-bold">{bot.invested_usdt} USDT</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-0.5 rounded-full text-xs border ${
+                        bot.status === 'Active' 
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                          : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                      }`}>
+                        {bot.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-[#8e96a3] text-xs">
+                      {new Date(bot.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {bot.receipt_data && (
+                        <button 
+                          onClick={() => handleViewReceipt(bot)}
+                          className="text-[#6366f1] hover:text-[#3b82f6] text-xs font-medium transition"
+                        >
+                          View
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
