@@ -3,11 +3,10 @@ import { useState, useEffect, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, Bell, Save, UploadCloud, 
+import {
+  User, Bell, Save, UploadCloud,
   CheckCircle, AlertCircle, X, Send, Check, Loader2
 } from 'lucide-react';
-// ✅ This import is fine - telegram-connect.ts already uses notification-export
 import { notifyTelegramConnected, notifyTelegramConnectedTelegram } from '@/app/lib/telegram-connect';
 import ProfileRing from '@/app/components/ProfileRing';
 
@@ -51,12 +50,11 @@ export default function SettingsPage() {
         .eq('user_id', user.id)
         .maybeSingle();
 
-      // SAFETY NET: If the row doesn't exist, create it silently
       if (!data) {
         const { error: insertError } = await supabase
           .from('user_balances')
           .insert({ user_id: user.id, funding_balance: 0, total_profit_usdt: 0, bonus_usdt: 0 });
-        
+
         if (!insertError) {
           const { data: newData } = await supabase
             .from('user_balances')
@@ -75,9 +73,7 @@ export default function SettingsPage() {
               telegram_notifications: newData.telegram_notifications ?? false,
               avatar_url: newData.avatar_url || ''
             });
-            if (newData.telegram_chat_id) {
-              setIsConnected(true);
-            }
+            if (newData.telegram_chat_id) setIsConnected(true);
           }
         }
       } else if (data) {
@@ -92,9 +88,7 @@ export default function SettingsPage() {
           telegram_notifications: data.telegram_notifications ?? false,
           avatar_url: data.avatar_url || ''
         });
-        if (data.telegram_chat_id) {
-          setIsConnected(true);
-        }
+        if (data.telegram_chat_id) setIsConnected(true);
       }
       setLoading(false);
     }
@@ -177,7 +171,6 @@ export default function SettingsPage() {
     }
   };
 
-  // --- TWO-STEP HANDSHAKE ---
   const handleOpenModal = () => {
     setIsModalOpen(true);
     setIsStepOne(true);
@@ -209,12 +202,12 @@ export default function SettingsPage() {
           .from('user_balances')
           .update({ telegram_chat_id: data.chat_id })
           .eq('user_id', user.id);
-        
+
         setIsConnected(true);
 
         const nameToUse = formData.full_name || user.email || 'User';
         await notifyTelegramConnectedTelegram(data.chat_id, nameToUse);
-        
+
         const emailToUse = user.email || '';
         if (emailToUse) {
           await notifyTelegramConnected(emailToUse, nameToUse);
@@ -235,22 +228,38 @@ export default function SettingsPage() {
   if (loading) return <div className="flex justify-center items-center h-[400px] text-white">Loading settings...</div>;
 
   return (
-    <div className="p-6 bg-[#0b0e14] text-white space-y-8 max-w-4xl mx-auto">
+    // ✅ FIX: removed p-6 (layout already pads), added space-y-6 sm:space-y-8 + overflow-x-hidden
+    <div className="space-y-6 sm:space-y-8 w-full max-w-4xl mx-auto bg-[#0b0e14] text-white overflow-x-hidden">
+
+      {/* Header */}
       <div className="flex justify-between items-center border-b border-white/5 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Account Settings</h1>
-          <p className="text-[#8e96a3] text-sm">Manage your profile, notifications, and preferences.</p>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold">Account Settings</h1>
+          <p className="text-[#8e96a3] text-xs sm:text-sm">Manage your profile, notifications, and preferences.</p>
         </div>
       </div>
 
-      {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-center gap-2"><AlertCircle size={18} /> {error}</div>}
-      {success && <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 flex items-center gap-2"><CheckCircle size={18} /> {success}</div>}
+      {error && (
+        <div className="p-3 sm:p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 flex items-start gap-2 text-sm">
+          <AlertCircle size={18} className="shrink-0 mt-0.5" />
+          <span className="min-w-0 break-words">{error}</span>
+        </div>
+      )}
+      {success && (
+        <div className="p-3 sm:p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 flex items-start gap-2 text-sm">
+          <CheckCircle size={18} className="shrink-0 mt-0.5" />
+          <span className="min-w-0 break-words">{success}</span>
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="bg-[#141a24] border border-white/5 rounded-2xl p-6 md:col-span-1">
+      {/* ✅ FIX: gap-4 on mobile; both cards p-4 sm:p-6 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+
+        {/* Avatar Card */}
+        <div className="bg-[#141a24] border border-white/5 rounded-2xl p-4 sm:p-6 md:col-span-1">
           <div className="flex flex-col items-center text-center">
-            
-            <div 
+
+            <div
               className="relative cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -261,84 +270,98 @@ export default function SettingsPage() {
               <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageUpload} className="hidden" />
             </div>
 
-            <h2 className="text-lg font-bold mt-4">{formData.full_name || 'User'}</h2>
-            <p className="text-[#8e96a3] text-sm">Click the avatar to upload a new photo.</p>
+            <h2 className="text-lg font-bold mt-4 truncate max-w-full">{formData.full_name || 'User'}</h2>
+            <p className="text-[#8e96a3] text-xs sm:text-sm">Click the avatar to upload a new photo.</p>
           </div>
         </div>
 
-        <div className="bg-[#141a24] border border-white/5 rounded-2xl p-6 md:col-span-2 space-y-6">
+        {/* Form Card */}
+        <div className="bg-[#141a24] border border-white/5 rounded-2xl p-4 sm:p-6 md:col-span-2 space-y-6">
+
+          {/* Personal Info */}
           <div>
-            <h3 className="text-sm font-bold text-[#8e96a3] uppercase tracking-wider mb-3">Personal Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h3 className="text-xs sm:text-sm font-bold text-[#8e96a3] uppercase tracking-wider mb-3">Personal Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Full Name</label>
-                <input name="full_name" value={formData.full_name} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white" />
+                <input name="full_name" value={formData.full_name} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white text-sm" />
               </div>
               <div>
                 <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Phone Number</label>
-                <input name="phone" value={formData.phone} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white" />
+                <input name="phone" value={formData.phone} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white text-sm" />
               </div>
               <div>
                 <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">Country</label>
-                <input name="country" value={formData.country} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white" />
+                <input name="country" value={formData.country} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white text-sm" />
               </div>
               <div>
                 <label className="text-xs text-[#8e96a3] uppercase tracking-wider block mb-1">State</label>
-                <input name="state" value={formData.state} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white" />
+                <input name="state" value={formData.state} onChange={handleChange} className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2 text-white text-sm" />
               </div>
             </div>
           </div>
 
+          {/* Notification Prefs */}
           <div className="border-t border-white/5 pt-6">
-            <h3 className="text-sm font-bold text-[#8e96a3] uppercase tracking-wider mb-3">Notification Preferences</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-[#0b0e14] rounded-xl border border-white/5">
-                <div>
+            <h3 className="text-xs sm:text-sm font-bold text-[#8e96a3] uppercase tracking-wider mb-3">Notification Preferences</h3>
+            <div className="space-y-3 sm:space-y-4">
+
+              {/* ✅ FIX: stack on mobile (flex-col sm:flex-row), full-width input on mobile, gap-3 */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 bg-[#0b0e14] rounded-xl border border-white/5">
+                <div className="min-w-0">
                   <p className="font-medium text-sm">Telegram Username</p>
                   <p className="text-xs text-[#8e96a3]">Your display name for SmartCodeNova</p>
                 </div>
-                <input name="telegram_username" value={formData.telegram_username} onChange={handleChange} placeholder="@username" className="bg-[#141a24] border border-white/5 rounded-lg px-3 py-1.5 text-sm text-white w-40 text-right" />
+                <input
+                  name="telegram_username"
+                  value={formData.telegram_username}
+                  onChange={handleChange}
+                  placeholder="@username"
+                  className="bg-[#141a24] border border-white/5 rounded-lg px-3 py-1.5 text-sm text-white w-full sm:w-40 sm:text-right"
+                />
               </div>
 
-              <div className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-300 ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-[#0b0e14] border-white/5'}`}>
-                <div>
-                  <p className="font-medium text-sm flex items-center gap-2">
+              {/* ✅ FIX: stack on mobile, gap-3, shrink-0 on button, min-w-0 on text */}
+              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-xl border transition-all duration-300 ${isConnected ? 'bg-green-500/10 border-green-500/20' : 'bg-[#0b0e14] border-white/5'}`}>
+                <div className="min-w-0">
+                  <p className="font-medium text-sm flex items-center flex-wrap gap-2">
                     Telegram Connection
                     {isConnected && <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/20">Connected</span>}
                   </p>
                   <p className="text-xs text-[#8e96a3]">Receive real-time alerts on your Telegram account.</p>
                 </div>
                 {isConnected ? (
-                  <div className="flex items-center gap-2 text-green-400 text-sm">
+                  <div className="flex items-center gap-2 text-green-400 text-sm shrink-0">
                     <CheckCircle size={18} /> Connected
                   </div>
                 ) : (
-                  <button 
+                  <button
                     onClick={handleOpenModal}
-                    className="px-4 py-2 bg-[#6366f1] rounded-lg text-sm font-medium text-white hover:opacity-90 transition flex items-center gap-2"
+                    className="px-4 py-2 bg-[#6366f1] rounded-lg text-sm font-medium text-white hover:opacity-90 transition flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto"
                   >
                     <Send size={14} /> Connect
                   </button>
                 )}
               </div>
-              
-              <div className="flex items-center justify-between p-4 bg-[#0b0e14] rounded-xl border border-white/5">
-                <div>
+
+              {/* ✅ FIX: gap-3, shrink-0 on toggle, min-w-0 on text */}
+              <div className="flex items-center justify-between gap-3 p-3 sm:p-4 bg-[#0b0e14] rounded-xl border border-white/5">
+                <div className="min-w-0">
                   <p className="font-medium text-sm">Email Notifications</p>
                   <p className="text-xs text-[#8e96a3]">Receive trade & deposit updates via email</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input type="checkbox" name="email_notifications" checked={formData.email_notifications} onChange={handleChange} className="sr-only peer" />
                   <div className="w-11 h-6 bg-[#2a2a4a] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#6366f1] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6366f1]"></div>
                 </label>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-[#0b0e14] rounded-xl border border-white/5">
-                <div>
+              <div className="flex items-center justify-between gap-3 p-3 sm:p-4 bg-[#0b0e14] rounded-xl border border-white/5">
+                <div className="min-w-0">
                   <p className="font-medium text-sm">Telegram Notifications</p>
                   <p className="text-xs text-[#8e96a3]">Receive trade & deposit updates via Telegram</p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input type="checkbox" name="telegram_notifications" checked={formData.telegram_notifications} onChange={handleChange} className="sr-only peer" />
                   <div className="w-11 h-6 bg-[#2a2a4a] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#6366f1] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#6366f1]"></div>
                 </label>
@@ -352,51 +375,56 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* --- TELEGRAM CONNECT MODAL --- */}
+      {/* Telegram Connect Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
             onClick={() => setIsModalOpen(false)}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-[#141a24] border border-white/10 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl"
+              className="bg-[#141a24] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="bg-gradient-to-r from-[#1a1a4e] to-[#0b0e14] p-6 border-b border-white/5 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              {/* ✅ FIX: modal header p-4 sm:p-6, responsive title, close button with padding */}
+              <div className="bg-gradient-to-r from-[#1a1a4e] to-[#0b0e14] p-4 sm:p-6 border-b border-white/5 flex justify-between items-center gap-2 shrink-0">
+                <h2 className="text-base sm:text-xl font-bold text-white flex items-center gap-2 min-w-0">
                   {isSyncing ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-[#6366f1]" />
+                    <Loader2 className="w-5 h-5 animate-spin text-[#6366f1] shrink-0" />
                   ) : (
-                    <Send size={20} className="text-[#6366f1]" />
+                    <Send size={20} className="text-[#6366f1] shrink-0" />
                   )}
-                  {isSyncing ? 'Syncing...' : 'Connect Telegram'}
+                  <span className="truncate">{isSyncing ? 'Syncing...' : 'Connect Telegram'}</span>
                 </h2>
-                <button onClick={() => setIsModalOpen(false)} className="text-[#8e96a3] hover:text-white transition">
-                  <X size={24} />
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  aria-label="Close modal"
+                  className="text-[#8e96a3] hover:text-white transition p-1 shrink-0"
+                >
+                  <X size={22} />
                 </button>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
                 {isStepOne ? (
                   <>
                     <div className="text-center">
                       <div className="w-16 h-16 bg-[#6366f1]/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#6366f1]/30">
                         <Send className="text-[#6366f1] w-8 h-8" />
                       </div>
-                      <h3 className="text-lg font-bold text-white mb-2">Step 1: Open Telegram</h3>
-                      <p className="text-[#8e96a3] text-sm">
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-2">Step 1: Open Telegram</h3>
+                      <p className="text-[#8e96a3] text-xs sm:text-sm">
                         Click the button below to open @SmartCodeNova_bot on Telegram.
                         Once opened, send <span className="bg-[#0b0e14] px-2 py-0.5 rounded border border-white/5 font-mono text-[#f59e0b]">/start</span>.
                       </p>
                     </div>
-                    <button 
+                    <button
                       onClick={handleStepOneContinue}
                       className="w-full py-3 bg-[#6366f1] rounded-xl font-bold text-white hover:opacity-90 transition"
                     >
@@ -409,20 +437,20 @@ export default function SettingsPage() {
                       <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/30">
                         <Check className="text-green-400 w-8 h-8" />
                       </div>
-                      <h3 className="text-lg font-bold text-white mb-2">Step 2: Confirm Action</h3>
-                      <p className="text-[#8e96a3] text-sm">
-                        Have you sent <span className="bg-[#0b0e14] px-2 py-0.5 rounded border border-white/5 font-mono text-[#f59e0b]">/start</span> 
-                        to @SmartCodeNova_bot on Telegram?
+                      <h3 className="text-base sm:text-lg font-bold text-white mb-2">Step 2: Confirm Action</h3>
+                      <p className="text-[#8e96a3] text-xs sm:text-sm">
+                        Have you sent <span className="bg-[#0b0e14] px-2 py-0.5 rounded border border-white/5 font-mono text-[#f59e0b]">/start</span>
+                        {' '}to @SmartCodeNova_bot on Telegram?
                       </p>
                     </div>
-                    <div className="flex gap-3">
-                      <button 
+                    <div className="flex gap-2 sm:gap-3">
+                      <button
                         onClick={() => setIsStepOne(true)}
                         className="flex-1 py-3 bg-[#0b0e14] border border-white/5 rounded-xl font-bold text-white hover:bg-white/5 transition"
                       >
                         Back
                       </button>
-                      <button 
+                      <button
                         onClick={handleStepTwoConfirm}
                         disabled={isSyncing}
                         className="flex-1 py-3 bg-[#6366f1] rounded-xl font-bold text-white hover:opacity-90 transition disabled:opacity-50"
