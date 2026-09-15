@@ -4,18 +4,18 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  PieChart, Pie, Cell, ResponsiveContainer, 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
-  AreaChart, Area 
+import {
+  PieChart, Pie, Cell, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area
 } from 'recharts';
-import { 
-  Wallet, TrendingUp, Gift, ArrowRight, 
-  Calendar, Clock, ShieldAlert 
+import {
+  Wallet, TrendingUp, Gift, ArrowRight,
+  Calendar, Clock, ShieldAlert
 } from 'lucide-react';
-import AINewsTicker from '@/app/components/AINewsTicker'; // <-- NEW IMPORT
+import AINewsTicker from '@/app/components/AINewsTicker';
 
-const COLORS = ['#3b82f6', '#10b981', '#f97316']; // Blue, Green, Orange
+const COLORS = ['#3b82f6', '#10b981', '#f97316'];
 
 export default function AnalyticsPage() {
   const supabase = createBrowserClient(
@@ -34,7 +34,6 @@ export default function AnalyticsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth/login'); return; }
 
-      // 1. Fetch Balances
       const { data: bal } = await supabase
         .from('user_balances')
         .select('funding_balance, total_profit_usdt, bonus_usdt')
@@ -50,7 +49,6 @@ export default function AnalyticsPage() {
         });
       }
 
-      // 2. Fetch ALL Trade Logs
       const { data: logs } = await supabase
         .from('bot_trade_logs')
         .select('*')
@@ -65,15 +63,14 @@ export default function AnalyticsPage() {
     fetchAnalytics();
   }, [supabase, router]);
 
-  // Data for the Daily Bar Chart (Last 7 Days)
   const dailyProfitData = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const today = new Date().getDay();
     const data = [];
-    
+
     for (let i = 6; i >= 0; i--) {
       const dayIndex = (today - i + 7) % 7;
-      const dayTrades = tradeLogs.filter(t => 
+      const dayTrades = tradeLogs.filter(t =>
         new Date(t.executed_at).getDay() === dayIndex
       );
       const total = dayTrades.reduce((sum, t) => sum + (t.profit_usdt || 0), 0);
@@ -82,9 +79,8 @@ export default function AnalyticsPage() {
     return data;
   };
 
-  // Data for the Cumulative Area Chart (P&L over time)
   const cumulativeProfitData = () => {
-    const sorted = [...tradeLogs].sort((a, b) => 
+    const sorted = [...tradeLogs].sort((a, b) =>
       new Date(a.executed_at).getTime() - new Date(b.executed_at).getTime()
     );
     let cumulative = 0;
@@ -97,38 +93,37 @@ export default function AnalyticsPage() {
   if (loading) return <div className="flex justify-center items-center h-[400px] text-white">Loading analytics...</div>;
 
   return (
-    <div className="p-6 bg-[#0b0e14] text-white space-y-8 max-w-6xl mx-auto">
-      
-      {/* Header */}
-      <div className="flex justify-between items-center border-b border-white/5 pb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Trading Analytics</h1>
-          <p className="text-[#8e96a3] text-sm">Visual insights into your bot's performance and earnings.</p>
+    <div className="space-y-6 sm:space-y-8 w-full max-w-6xl mx-auto bg-[#0b0e14] text-white overflow-x-hidden">
+
+      {/* Header — ✅ stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border-b border-white/5 pb-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold">Trading Analytics</h1>
+          <p className="text-[#8e96a3] text-xs sm:text-sm">Visual insights into your bot's performance and earnings.</p>
         </div>
-        <Link href="/dashboard/transactions">
-          <button className="flex items-center gap-2 px-4 py-2 bg-[#141a24] border border-white/5 rounded-lg text-sm hover:bg-white/5 transition">
+        <Link href="/dashboard/transactions" className="shrink-0">
+          <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#141a24] border border-white/5 rounded-lg text-xs sm:text-sm hover:bg-white/5 transition w-full sm:w-auto">
             View Full History <ArrowRight size={16} />
           </button>
         </Link>
       </div>
 
-      {/* --- NEW: AI News Ticker --- */}
       <AINewsTicker />
 
-      {/* 3 Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* 1. Donut Chart (Balance Breakdown) */}
-        <motion.div 
+      {/* 3 Charts Grid — ✅ padding/gaps tuned */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+
+        {/* 1. Donut Chart */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#141a24] border border-white/5 rounded-2xl p-6"
+          className="bg-[#141a24] border border-white/5 rounded-2xl p-4 sm:p-6"
         >
           <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
-            <Wallet className="text-blue-400 w-5 h-5" />
-            <h3 className="font-bold text-white">Balance Breakdown</h3>
+            <Wallet className="text-blue-400 w-5 h-5 shrink-0" />
+            <h3 className="font-bold text-white text-sm sm:text-base">Balance Breakdown</h3>
           </div>
-          <div className="h-[200px] w-full">
+          <div className="h-[180px] sm:h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -137,78 +132,75 @@ export default function AnalyticsPage() {
                     { name: 'Profit', value: balanceData.profit },
                     { name: 'Bonus', value: balanceData.bonus }
                   ]}
-                  cx="50%" cy="50%" innerRadius={60} outerRadius={80}
+                  cx="50%" cy="50%" innerRadius={50} outerRadius={70}
                   paddingAngle={5} dataKey="value"
                 >
                   {balanceData.funding > 0 && <Cell fill="#3b82f6" />}
                   {balanceData.profit > 0 && <Cell fill="#10b981" />}
                   {balanceData.bonus > 0 && <Cell fill="#f97316" />}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#151530', border: '1px solid #2a2a50', borderRadius: '8px', color: '#fff' }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6 mt-2 text-xs">
+          {/* ✅ flex-wrap + gap tighter on mobile */}
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mt-2 text-xs">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400"></span> Funding</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400"></span> Profit</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400"></span> Bonus</span>
           </div>
         </motion.div>
 
-        {/* 2. Bar Chart (Daily Profit) */}
-        <motion.div 
+        {/* 2. Bar Chart */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-[#141a24] border border-white/5 rounded-2xl p-6"
+          className="bg-[#141a24] border border-white/5 rounded-2xl p-4 sm:p-6"
         >
           <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
-            <Calendar className="text-yellow-400 w-5 h-5" />
-            <h3 className="font-bold text-white">Daily Profit (Last 7 Days)</h3>
+            <Calendar className="text-yellow-400 w-5 h-5 shrink-0" />
+            <h3 className="font-bold text-white text-sm sm:text-base">Daily Profit (Last 7 Days)</h3>
           </div>
-          <div className="h-[200px] w-full">
+          <div className="h-[180px] sm:h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyProfitData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a40" />
-                <XAxis dataKey="name" stroke="#4a4a6a" tick={{fill: '#6a6a8a', fontSize: 10}} axisLine={false} tickLine={false} />
-                <YAxis stroke="#4a4a6a" tick={{fill: '#6a6a8a', fontSize: 10}} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#151530', border: '1px solid #2a2a50', borderRadius: '8px', color: '#fff' }}
-                />
+                <XAxis dataKey="name" stroke="#4a4a6a" tick={{ fill: '#6a6a8a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#4a4a6a" tick={{ fill: '#6a6a8a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#151530', border: '1px solid #2a2a50', borderRadius: '8px', color: '#fff' }} />
                 <Bar dataKey="profit" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </motion.div>
 
-        {/* 3. Area Chart (Cumulative P&L) */}
-        <motion.div 
+        {/* 3. Area Chart */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#141a24] border border-white/5 rounded-2xl p-6"
+          className="bg-[#141a24] border border-white/5 rounded-2xl p-4 sm:p-6"
         >
           <div className="flex items-center gap-2 mb-4 border-b border-white/5 pb-3">
-            <TrendingUp className="text-green-400 w-5 h-5" />
-            <h3 className="font-bold text-white">Cumulative P&L</h3>
+            <TrendingUp className="text-green-400 w-5 h-5 shrink-0" />
+            <h3 className="font-bold text-white text-sm sm:text-base">Cumulative P&L</h3>
           </div>
-          <div className="h-[200px] w-full">
+          <div className="h-[180px] sm:h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={cumulativeProfitData()}>
                 <defs>
                   <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1a1a40" />
-                <XAxis dataKey="name" stroke="#4a4a6a" tick={{fill: '#6a6a8a', fontSize: 10}} axisLine={false} tickLine={false} />
-                <YAxis stroke="#4a4a6a" tick={{fill: '#6a6a8a', fontSize: 10}} axisLine={false} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#151530', border: '1px solid #2a2a50', borderRadius: '8px', color: '#fff' }}
-                />
+                <XAxis dataKey="name" stroke="#4a4a6a" tick={{ fill: '#6a6a8a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#4a4a6a" tick={{ fill: '#6a6a8a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ backgroundColor: '#151530', border: '1px solid #2a2a50', borderRadius: '8px', color: '#fff' }} />
                 <Area type="monotone" dataKey="profit" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorProfit)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -217,55 +209,79 @@ export default function AnalyticsPage() {
 
       </div>
 
-      {/* Last 5 Trades + View More */}
-      <motion.div 
+      {/* Recent Trades — ✅ mobile cards + desktop table */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-[#141a24] border border-white/5 rounded-2xl p-6"
+        className="bg-[#141a24] border border-white/5 rounded-2xl p-4 sm:p-6"
       >
-        <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-3">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <Clock size={18} className="text-[#6366f1]" /> Recent Trades
+        <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-3 gap-2">
+          <h3 className="font-bold text-white flex items-center gap-2 text-sm sm:text-base">
+            <Clock size={18} className="text-[#6366f1] shrink-0" /> Recent Trades
           </h3>
           <Link href="/dashboard/transactions">
-            <button className="text-sm text-[#6366f1] hover:text-[#3b82f6] transition flex items-center gap-1">
+            <button className="text-xs sm:text-sm text-[#6366f1] hover:text-[#3b82f6] transition flex items-center gap-1 shrink-0">
               View All <ArrowRight size={14} />
             </button>
           </Link>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="border-b border-white/5 text-[#8e96a3]">
-              <tr>
-                <th className="px-4 py-2">Time</th>
-                <th className="px-4 py-2">Pair</th>
-                <th className="px-4 py-2">Action</th>
-                <th className="px-4 py-2">Profit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {last5Trades.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-6 text-center text-[#8e96a3]">No trades recorded yet.</td></tr>
-              ) : (
-                last5Trades.map((trade, idx) => (
-                  <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
-                    <td className="px-4 py-2 text-[#8e96a3] text-xs">{new Date(trade.executed_at).toLocaleTimeString()}</td>
-                    <td className="px-4 py-2 font-mono">{trade.pair}</td>
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${trade.action === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                        {trade.action}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-2 font-bold ${trade.profit_usdt >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+
+        {last5Trades.length === 0 ? (
+          <div className="py-6 text-center text-[#8e96a3] text-sm">No trades recorded yet.</div>
+        ) : (
+          <>
+            {/* Mobile: compact flex rows */}
+            <div className="md:hidden space-y-2">
+              {last5Trades.map((trade, idx) => (
+                <div key={idx} className="bg-[#0b0e14] border border-white/5 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-white truncate">{trade.pair}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${trade.action === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                      {trade.action}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-xs pt-1.5 border-t border-white/5">
+                    <span className="text-[#8e96a3]">{new Date(trade.executed_at).toLocaleTimeString()}</span>
+                    <span className={`font-bold ${trade.profit_usdt >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {trade.profit_usdt >= 0 ? '+' : ''}{trade.profit_usdt.toFixed(2)} USDT
-                    </td>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="border-b border-white/5 text-[#8e96a3]">
+                  <tr>
+                    <th className="px-4 py-2">Time</th>
+                    <th className="px-4 py-2">Pair</th>
+                    <th className="px-4 py-2">Action</th>
+                    <th className="px-4 py-2">Profit</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {last5Trades.map((trade, idx) => (
+                    <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition">
+                      <td className="px-4 py-2 text-[#8e96a3] text-xs">{new Date(trade.executed_at).toLocaleTimeString()}</td>
+                      <td className="px-4 py-2 font-mono">{trade.pair}</td>
+                      <td className="px-4 py-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${trade.action === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {trade.action}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-2 font-bold ${trade.profit_usdt >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {trade.profit_usdt >= 0 ? '+' : ''}{trade.profit_usdt.toFixed(2)} USDT
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </motion.div>
     </div>
   );
