@@ -445,4 +445,170 @@ export default function TransactionsPage() {
                     <button
                       onClick={() => setTradePage(prev => Math.max(1, prev - 1))}
                       disabled={tradePage === 1}
-                      aria-label="
+                      aria-label="Previous page"
+                      className="p-2 bg-[#141a24] rounded-lg border border-white/5 hover:bg-white/5 transition disabled:opacity-50"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-xs sm:text-sm text-[#8e96a3]">
+                      Page {tradePage} of {Math.ceil(totalTrades / 5)}
+                    </span>
+                    <button
+                      onClick={() => setTradePage(prev => prev + 1)}
+                      disabled={tradePage * 5 >= totalTrades}
+                      aria-label="Next page"
+                      className="p-2 bg-[#141a24] rounded-lg border border-white/5 hover:bg-white/5 transition disabled:opacity-50"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        )}
+
+        {/* ---------- WITHDRAWALS ---------- */}
+        {activeTab === 'withdrawals' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {withdrawals.length === 0 ? (
+              <div className="py-8 text-center text-[#8e96a3] text-sm">No withdrawals found.</div>
+            ) : (
+              <>
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-3">
+                  {withdrawals.map((w) => {
+                    const badge = w.status === 'approved'
+                      ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                      : w.status === 'rejected'
+                      ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                      : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+                    const Icon = w.status === 'approved' ? CheckCircle : w.status === 'rejected' ? XCircle : Clock;
+                    return (
+                      <div key={w.id} className="bg-[#0b0e14] border border-white/5 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-[#8e96a3]">{new Date(w.created_at).toLocaleDateString()}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border inline-flex items-center gap-1 ${badge}`}>
+                            <Icon size={12} /> {w.status.charAt(0).toUpperCase() + w.status.slice(1)}
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold text-green-400">{w.net_amount?.toFixed(2)} USDT</div>
+                        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs pt-2 border-t border-white/5">
+                          <span className="text-[#8e96a3]">Amount</span>
+                          <span className="text-right text-yellow-400">{w.amount} USDT</span>
+                          <span className="text-[#8e96a3]">Fee (3%)</span>
+                          <span className="text-right text-red-400">-{w.fee_amount?.toFixed(2)} USDT</span>
+                          <span className="text-[#8e96a3]">Wallet</span>
+                          <span className="text-right font-mono text-[#8e96a3] break-all">{w.wallet_address}</span>
+                        </div>
+                        <button
+                          onClick={() => openReceipt(w, 'withdrawal')}
+                          className="w-full py-2 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-lg text-[#6366f1] text-xs font-medium hover:bg-[#6366f1]/20 transition"
+                        >
+                          View Receipt
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="border-b border-white/5 text-[#8e96a3]">
+                      <tr>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Amount</th>
+                        <th className="px-4 py-3">Fee (3%)</th>
+                        <th className="px-4 py-3">Net Received</th>
+                        <th className="px-4 py-3">Wallet</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {withdrawals.map((w) => (
+                        <tr key={w.id} className="border-b border-white/5 hover:bg-white/5 transition">
+                          <td className="px-4 py-3">{new Date(w.created_at).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 font-bold text-yellow-400">{w.amount} USDT</td>
+                          <td className="px-4 py-3 text-red-400">-{w.fee_amount?.toFixed(2)} USDT</td>
+                          <td className="px-4 py-3 font-bold text-green-400">{w.net_amount?.toFixed(2)} USDT</td>
+                          <td className="px-4 py-3 text-xs font-mono text-[#8e96a3] truncate max-w-[140px]">{w.wallet_address}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${w.status === 'approved' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : w.status === 'rejected' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'}`}>
+                              {w.status === 'approved' ? <CheckCircle size={12} /> : w.status === 'rejected' ? <XCircle size={12} /> : <Clock size={12} />}
+                              {w.status.charAt(0).toUpperCase() + w.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => openReceipt(w, 'withdrawal')} className="px-3 py-1 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-lg text-[#6366f1] text-xs hover:bg-[#6366f1]/20 transition">
+                              View Receipt
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </motion.div>
+        )}
+      </div>
+
+      {/* ---------- RECEIPT MODAL ---------- */}
+      <AnimatePresence>
+        {isReceiptOpen && receipt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+            onClick={() => setIsReceiptOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#141a24] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-gradient-to-r from-[#1a1a4e] to-[#0b0e14] p-4 sm:p-6 border-b border-white/5 text-center relative shrink-0">
+                <button
+                  onClick={() => setIsReceiptOpen(false)}
+                  aria-label="Close receipt"
+                  className="absolute right-3 top-3 sm:right-4 sm:top-4 text-[#8e96a3] hover:text-white transition p-1"
+                >
+                  <X size={22} />
+                </button>
+                <h2 className="text-lg sm:text-2xl font-bold text-white">Transaction Receipt</h2>
+                <p className="text-[#8e96a3] text-xs sm:text-sm">Transaction details</p>
+              </div>
+
+              <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
+                <div className="bg-[#0b0e14] rounded-xl border border-white/5 p-2 sm:p-4 overflow-auto">
+                  {receipt && <div dangerouslySetInnerHTML={{ __html: receipt }} />}
+                </div>
+              </div>
+
+              <div className="p-3 sm:p-6 pt-0 flex gap-2 sm:gap-3 shrink-0">
+                <button
+                  onClick={handlePrint}
+                  className="flex-1 py-2.5 sm:py-3 bg-[#6366f1] rounded-xl font-bold text-white hover:opacity-90 transition flex items-center justify-center gap-2 text-xs sm:text-sm"
+                >
+                  <Download size={16} /> Download Receipt
+                </button>
+                <button
+                  onClick={() => setIsReceiptOpen(false)}
+                  className="flex-1 py-2.5 sm:py-3 bg-[#0b0e14] border border-white/5 rounded-xl font-bold text-white hover:bg-white/5 transition text-xs sm:text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
