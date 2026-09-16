@@ -24,6 +24,14 @@ interface CardDisplayProps {
 const CANVAS_W = 420;
 const CANVAS_H = 260;
 
+// The card PNGs have transparent padding on the left that the overlay
+// coordinates were authored without. Shift the whole canvas left so
+// number/expiry/name align with the visible artwork.
+// Tune this value: -30 is a good starting point. Move more negative
+// (e.g. -40) if the text is still too far right. Move less negative
+// (e.g. -20) if it drifts too far left.
+const OVERLAY_OFFSET_X = -30;
+
 export default function CardDisplay({
     cardType,
     cardNumber,
@@ -195,7 +203,7 @@ export default function CardDisplay({
         left: 0,
         width: CANVAS_W,
         height: CANVAS_H,
-        transform: `scale(${scale})`,
+        transform: `translateX(${OVERLAY_OFFSET_X}px) scale(${scale})`,
         transformOrigin: 'top left',
         pointerEvents: 'none',
     };
