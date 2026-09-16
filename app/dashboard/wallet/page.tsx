@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { notifyUserDepositProcessing, notifyAdminNewDeposit } from '@/app/lib/wallet-notifications';
 
-// ---------- Small helper: animated number counter ----------
+// ---------- Animated number counter ----------
 function useCountUp(target: number, durationMs = 900) {
     const [value, setValue] = useState(0);
     const fromRef = useRef(0);
@@ -37,7 +37,6 @@ function useCountUp(target: number, durationMs = 900) {
         let raf = 0;
         const tick = (now: number) => {
             const t = Math.min((now - start) / durationMs, 1);
-            // easeOutCubic
             const eased = 1 - Math.pow(1 - t, 3);
             setValue(from + diff * eased);
             if (t < 1) raf = requestAnimationFrame(tick);
@@ -50,7 +49,7 @@ function useCountUp(target: number, durationMs = 900) {
     return value;
 }
 
-// ---------- Small helper: mini donut (pure SVG) ----------
+// ---------- Mini donut (pure SVG) ----------
 function MiniDonut({
     segments,
     size = 96,
@@ -107,7 +106,7 @@ export default function WalletPage() {
     const [copied, setCopied] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
-    const [qrModal, setQrModal] = useState<string | null>(null); // 'TRC20' | 'BEP20' | null
+    const [qrModal, setQrModal] = useState<string | null>(null);
     const [depositHistory, setDepositHistory] = useState<any[]>([]);
     const [showHistory, setShowHistory] = useState(false);
 
@@ -171,7 +170,6 @@ export default function WalletPage() {
         setTimeout(() => setCopied(''), 3000);
     };
 
-    // Truncate wallet in the middle for display — TG6Ean...67tyyd
     const shortAddr = (addr: string) =>
         addr.length > 16 ? `${addr.slice(0, 6)}…${addr.slice(-6)}` : addr;
 
@@ -250,19 +248,16 @@ export default function WalletPage() {
         return statusMap[status] || statusMap.pending;
     };
 
-    // Live-validation state for the form
     const amountNum = parseFloat(amount || '0');
     const txidTooShort = txid.length > 0 && txid.length < 10;
     const amountTooLow = amount !== '' && amountNum > 0 && amountNum < 10;
     const canSubmit = !submitting && amountNum >= 10 && txid.length >= 10;
 
-    // Animated hero number
     const animatedTotal = useCountUp(balances.total, 900);
     const animatedFunding = useCountUp(balances.funding, 700);
     const animatedProfit = useCountUp(balances.profit, 800);
     const animatedBonus = useCountUp(balances.bonus, 800);
 
-    // Donut segments
     const donutSegments = useMemo(() => ([
         { value: balances.funding, color: '#3b82f6' },
         { value: balances.profit, color: '#10b981' },
@@ -295,7 +290,6 @@ export default function WalletPage() {
                     </h1>
                     <p className="text-[#8e96a3] text-xs sm:text-sm">Manage your deposits and track your balance.</p>
                 </div>
-                {/* ✅ Enhanced: live "Funded" pulse next to balance */}
                 <motion.div
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center gap-2 text-xs sm:text-sm bg-[#141a24] px-3 sm:px-4 py-2 rounded-xl border border-white/5"
@@ -349,13 +343,12 @@ export default function WalletPage() {
                 )}
             </AnimatePresence>
 
-            {/* ---------- HERO BALANCE CARD ---------- */}
+            {/* Hero Balance Card */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="relative overflow-hidden bg-gradient-to-br from-[#1a1a4e] via-[#141a24] to-[#0b0e14] rounded-2xl border border-white/5 p-4 sm:p-6"
             >
-                {/* Ambient sweep */}
                 <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
                     <motion.div
                         initial={{ x: '-120%' }}
@@ -396,13 +389,13 @@ export default function WalletPage() {
                 </div>
             </motion.div>
 
-            {/* ---------- 4 Balance Cards (now animated counters) ---------- */}
+            {/* 4 Balance Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 {[
-                    { label: 'Total Balance', value: animatedTotal, color: 'text-white', icon: Wallet, bg: 'from-blue-500/20 to-purple-500/20' },
-                    { label: 'Funding Balance', value: animatedFunding, color: 'text-green-400', icon: Banknote, bg: 'from-green-500/20 to-emerald-500/20' },
-                    { label: 'Total Profit', value: animatedProfit, prefix: '+', color: 'text-[#10b981]', icon: TrendingUp, bg: 'from-teal-500/20 to-cyan-500/20' },
-                    { label: 'Bonus Balance', value: animatedBonus, prefix: '+', color: 'text-[#f97316]', icon: Gift, bg: 'from-orange-500/20 to-yellow-500/20' },
+                    { label: 'Total Balance', value: animatedTotal, color: 'text-white', icon: Wallet, bg: 'from-blue-500/20 to-purple-500/20', prefix: '' },
+                    { label: 'Funding Balance', value: animatedFunding, color: 'text-green-400', icon: Banknote, bg: 'from-green-500/20 to-emerald-500/20', prefix: '' },
+                    { label: 'Total Profit', value: animatedProfit, color: 'text-[#10b981]', icon: TrendingUp, bg: 'from-teal-500/20 to-cyan-500/20', prefix: '+' },
+                    { label: 'Bonus Balance', value: animatedBonus, color: 'text-[#f97316]', icon: Gift, bg: 'from-orange-500/20 to-yellow-500/20', prefix: '+' },
                 ].map((item, index) => (
                     <motion.div
                         key={item.label}
@@ -420,7 +413,7 @@ export default function WalletPage() {
                 ))}
             </div>
 
-            {/* ---------- Deposit Methods ---------- */}
+            {/* Deposit Methods */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -448,7 +441,7 @@ export default function WalletPage() {
                     <span className="text-yellow-400 font-medium ml-1">Only send USDT on the selected network.</span>
                 </p>
 
-                {/* History */}
+                {/* Deposit History */}
                 <AnimatePresence>
                     {showHistory && depositHistory.length > 0 && (
                         <motion.div
@@ -467,7 +460,6 @@ export default function WalletPage() {
                                         return (
                                             <div key={deposit.id} className="px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
                                                 <div className="min-w-0 flex items-center gap-2.5">
-                                                    {/* ✅ Enhanced: colored dot indicator */}
                                                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dot}`} />
                                                     <div className="min-w-0">
                                                         <p className="text-sm text-white truncate tabular-nums">{deposit.amount} USDT</p>
@@ -493,7 +485,7 @@ export default function WalletPage() {
                     )}
                 </AnimatePresence>
 
-                {/* Network cards */}
+                {/* Network Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     {(['TRC20', 'BEP20'] as const).map((net) => (
                         <motion.div
@@ -516,7 +508,6 @@ export default function WalletPage() {
                                 </motion.button>
                             </div>
 
-                            {/* ✅ Enhanced: address now truncates in the middle + explicit Copy label */}
                             <div className="bg-[#141a24] p-3 rounded-xl border border-white/5 flex items-center justify-between gap-2">
                                 <code className="text-xs text-[#8e96a3] font-mono min-w-0 truncate" title={ADDRESSES[net]}>
                                     {shortAddr(ADDRESSES[net])}
@@ -570,7 +561,6 @@ export default function WalletPage() {
                                 <option>TRC20</option>
                                 <option>BEP20</option>
                             </select>
-                            {/* ✅ Enhanced: fee hint */}
                             <p className="text-[10px] text-[#8e96a3] mt-1 flex items-center gap-1">
                                 <Info size={10} /> Make sure the network matches your send
                             </p>
@@ -588,7 +578,6 @@ export default function WalletPage() {
                                 min="1"
                                 step="0.01"
                             />
-                            {/* ✅ Enhanced: live validation */}
                             {amountTooLow && (
                                 <p className="text-[10px] text-yellow-400 mt-1 flex items-center gap-1">
                                     <AlertCircle size={10} /> Minimum deposit is 10 USDT
@@ -606,7 +595,6 @@ export default function WalletPage() {
                                 className="w-full bg-[#0b0e14] border border-white/5 rounded-lg p-2.5 text-white focus:border-purple-500 focus:outline-none transition"
                                 required
                             />
-                            {/* ✅ Enhanced: live validation */}
                             {txidTooShort && (
                                 <p className="text-[10px] text-yellow-400 mt-1 flex items-center gap-1">
                                     <AlertCircle size={10} /> TXID looks too short ({txid.length} chars)
@@ -669,24 +657,73 @@ export default function WalletPage() {
                 </div>
             </motion.div>
 
-            {/* ---------- QR MODAL ---------- */}
+            {/* QR Modal */}
             <AnimatePresence>
                 {qrModal && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                        className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
                         onClick={() => setQrModal(null)}
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            className="bg-[#141a24] border border-white/10 rounded-2xl w-full max-w-sm p-6 text-center"
+                            className="relative bg-[#141a24] border border-white/10 rounded-2xl w-full max-w-sm p-5 sm:p-6 text-center max-h-[90vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
                                 onClick={() => setQrModal(null)}
                                 aria-label="Close QR"
-                                className="absolute top-3 right-3 text
+                                className="absolute top-3 right-3 text-[#8e96a3] hover:text-white transition p-1"
+                            >
+                                <X size={20} />
+                            </button>
+
+                            <h3 className="text-base sm:text-lg font-bold text-white mb-1 mt-2">
+                                {qrModal} Deposit Address
+                            </h3>
+                            <p className="text-xs text-[#8e96a3] mb-4">
+                                Scan with your wallet app
+                            </p>
+
+                            <div className="bg-white rounded-2xl p-3 inline-block mb-4">
+                                <img
+                                    src={QR_CODES[qrModal]}
+                                    alt={`${qrModal} QR Code`}
+                                    className="w-56 h-56 max-w-full object-contain"
+                                />
+                            </div>
+
+                            <div className="bg-[#0b0e14] rounded-xl border border-white/5 p-3 text-left mb-4">
+                                <p className="text-[10px] uppercase tracking-wider text-[#8e96a3] mb-1">
+                                    {qrModal} Address
+                                </p>
+                                <code className="text-xs text-[#8e96a3] break-all font-mono block">
+                                    {ADDRESSES[qrModal]}
+                                </code>
+                            </div>
+
+                            <button
+                                onClick={() => copyAddress(ADDRESSES[qrModal], qrModal)}
+                                className="w-full py-2.5 bg-[#6366f1] hover:bg-[#6366f1]/90 rounded-xl font-bold text-white transition flex items-center justify-center gap-2 text-sm"
+                            >
+                                {copied === qrModal ? (
+                                    <>
+                                        <CheckCircle size={16} /> Copied!
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy size={16} /> Copy Address
+                                    </>
+                                )}
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
