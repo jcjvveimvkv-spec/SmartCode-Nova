@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { toast } from 'sonner';
-import { 
-    CreditCard, 
-    Plus, 
+import { motion } from 'framer-motion';
+import {
+    CreditCard,
+    Plus,
     RefreshCw,
     ChevronRight,
     Clock,
@@ -47,13 +48,43 @@ interface Card {
     activated_date: string | null;
 }
 
+// ============================================================
+// SKELETON PLACEHOLDER
+// ============================================================
+function CardSkeleton() {
+    return (
+        <div className="bg-[#1a2332] rounded-xl border border-white/5 overflow-hidden">
+            <div className="p-4">
+                <div
+                    className="w-full max-w-[420px] mx-auto rounded-2xl bg-white/5 animate-pulse"
+                    style={{ aspectRatio: '420 / 260' }}
+                />
+            </div>
+            <div className="p-3 sm:p-4 pt-0 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                    {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="space-y-1.5">
+                            <div className="h-2.5 w-16 rounded bg-white/5 animate-pulse" />
+                            <div className="h-3.5 w-24 rounded bg-white/10 animate-pulse" />
+                        </div>
+                    ))}
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-white/5">
+                    <div className="h-9 w-32 rounded-lg bg-white/5 animate-pulse" />
+                    <div className="h-4 w-24 rounded bg-white/5 animate-pulse" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function DashboardCardsPage() {
     const router = useRouter();
     const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-    
+
     const [cards, setCards] = useState<Card[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -66,10 +97,10 @@ export default function DashboardCardsPage() {
     const loadData = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             const { data: { user }, error: authError } = await supabase.auth.getUser();
-            
+
             if (authError) {
                 console.error('Auth error:', authError);
                 setError('Authentication error. Please refresh and try again.');
@@ -86,15 +117,15 @@ export default function DashboardCardsPage() {
 
             const cardsResponse = await fetch(`/api/cards?userId=${user.id}`);
             console.log('📡 Cards API response status:', cardsResponse.status);
-            
+
             if (cardsResponse.ok) {
                 const cardsResult = await cardsResponse.json();
                 console.log('📊 User cards response:', cardsResult);
-                
+
                 if (cardsResult.success && Array.isArray(cardsResult.data)) {
                     const userCards = cardsResult.data;
                     console.log(`📊 Found ${userCards.length} cards for user`);
-                    
+
                     // Log sample data to verify cvv and card_holder_name
                     if (userCards.length > 0) {
                         console.log('📊 Sample card:', {
@@ -102,7 +133,7 @@ export default function DashboardCardsPage() {
                             cvv: userCards[0].cvv || 'MISSING',
                         });
                     }
-                    
+
                     setCards(userCards);
                 } else {
                     setCards([]);
@@ -181,31 +212,69 @@ export default function DashboardCardsPage() {
     const getCardActionButton = (card: Card) => {
         const status = card.status;
         const isProcessing = processing[card.id] || false;
-        
+
         if (status === 'pending' || status === 'awaiting_payment' || status === 'payment_pending') {
-            return <div className="text-yellow-400 text-sm flex items-center gap-2"><Clock className="w-4 h-4 animate-pulse" /> Under Review - 3-5 business days</div>;
+            return (
+                <div className="text-yellow-400 text-xs sm:text-sm flex items-center gap-2 min-w-0">
+                    <Clock className="w-4 h-4 shrink-0 animate-pulse" />
+                    <span className="truncate">Under review</span>
+                </div>
+            );
         }
         if (status === 'payment_confirmed') {
-            return <div className="text-blue-400 text-sm flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Payment Confirmed - Awaiting Approval</div>;
+            return (
+                <div className="text-blue-400 text-xs sm:text-sm flex items-center gap-2 min-w-0">
+                    <CheckCircle className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Awaiting approval</span>
+                </div>
+            );
         }
         if (status === 'rejected') {
-            return <div className="text-red-400 text-sm flex items-center gap-2"><XCircle className="w-4 h-4" /> Application Rejected</div>;
+            return (
+                <div className="text-red-400 text-xs sm:text-sm flex items-center gap-2 min-w-0">
+                    <XCircle className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Rejected</span>
+                </div>
+            );
         }
         if (status === 'issued' || status === 'shipped') {
-            return <div className="text-blue-400 text-sm flex items-center gap-2"><CreditCard className="w-4 h-4" /> Being Processed</div>;
+            return (
+                <div className="text-blue-400 text-xs sm:text-sm flex items-center gap-2 min-w-0">
+                    <CreditCard className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Being processed</span>
+                </div>
+            );
         }
         if (status === 'not_activated') {
-            return <button className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition text-sm">Activate at ATM</button>;
+            return (
+                <button className="px-4 py-2.5 sm:py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition text-sm w-full sm:w-auto">
+                    Activate at ATM
+                </button>
+            );
         }
         if (status === 'active') {
-            return <button onClick={() => handleBlock(card.id, 'block')} disabled={isProcessing} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition text-sm flex items-center gap-2 disabled:opacity-50">
-                {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />} Block Card
-            </button>;
+            return (
+                <button
+                    onClick={() => handleBlock(card.id, 'block')}
+                    disabled={isProcessing}
+                    className="px-4 py-2.5 sm:py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition text-sm flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
+                >
+                    {isProcessing ? <RefreshCw className="w-4 h-4 shrink-0 animate-spin" /> : <Lock className="w-4 h-4 shrink-0" />}
+                    Block card
+                </button>
+            );
         }
         if (status === 'blocked') {
-            return <button onClick={() => handleBlock(card.id, 'unblock')} disabled={isProcessing} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition text-sm flex items-center gap-2 disabled:opacity-50">
-                {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />} Unblock Card
-            </button>;
+            return (
+                <button
+                    onClick={() => handleBlock(card.id, 'unblock')}
+                    disabled={isProcessing}
+                    className="px-4 py-2.5 sm:py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition text-sm flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
+                >
+                    {isProcessing ? <RefreshCw className="w-4 h-4 shrink-0 animate-spin" /> : <Unlock className="w-4 h-4 shrink-0" />}
+                    Unblock card
+                </button>
+            );
         }
         return null;
     };
@@ -215,94 +284,144 @@ export default function DashboardCardsPage() {
     const pendingCards = cards.filter(c => c.status === 'pending' || c.status === 'awaiting_payment' || c.status === 'payment_pending' || c.status === 'payment_confirmed').length;
     const blockedCards = cards.filter(c => c.status === 'blocked').length;
 
+    const stats = [
+        { label: 'Total cards', value: totalCards, tone: 'text-white' },
+        { label: 'Active', value: activeCards, tone: 'text-green-500' },
+        { label: 'Under review', value: pendingCards, tone: 'text-yellow-500' },
+        { label: 'Blocked', value: blockedCards, tone: 'text-red-500' },
+    ];
+
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-                <p className="text-gray-400 text-sm">Loading your cards...</p>
+            <div className="space-y-4 sm:space-y-6 w-full max-w-7xl mx-auto overflow-x-hidden">
+                <div className="h-8 w-40 rounded bg-white/5 animate-pulse" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                    {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="bg-[#1a2332] p-3 sm:p-4 rounded-xl border border-white/5 space-y-2">
+                            <div className="h-3 w-20 rounded bg-white/5 animate-pulse" />
+                            <div className="h-6 w-10 rounded bg-white/10 animate-pulse" />
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                    <CardSkeleton />
+                    <CardSkeleton />
+                </div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="p-6">
-                <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded-lg mb-4">⚠️ {error}</div>
-                <div className="bg-[#1a2332] rounded-xl border border-white/5 p-6">
+            <div className="w-full max-w-7xl mx-auto overflow-x-hidden">
+                <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded-lg mb-4 break-words">
+                    ⚠️ {error}
+                </div>
+                <div className="bg-[#1a2332] rounded-xl border border-white/5 p-4 sm:p-6">
                     <h2 className="text-lg font-semibold text-white mb-2">Cards</h2>
-                    <p className="text-gray-400 text-sm">Unable to load cards. Please try again later.</p>
-                    <button onClick={() => window.location.reload()} className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition">Refresh Page</button>
+                    <p className="text-gray-400 text-sm break-words">We couldn&apos;t load your cards. Try refreshing the page.</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="mt-4 w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 sm:py-2 rounded-lg transition"
+                    >
+                        Refresh page
+                    </button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="space-y-4 sm:space-y-6 w-full max-w-7xl mx-auto overflow-x-hidden">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">💳 My Cards</h1>
-                    <p className="text-gray-400 text-sm">Manage your cards and applications</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-white truncate">💳 My cards</h1>
+                    <p className="text-gray-400 text-xs sm:text-sm">Manage your cards and applications</p>
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={loadData} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition">
-                        <RefreshCw className="w-4 h-4" /> Refresh
+                <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+                    <button
+                        onClick={loadData}
+                        className="flex-1 sm:flex-none bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 sm:py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm"
+                    >
+                        <RefreshCw className="w-4 h-4 shrink-0" /> Refresh
                     </button>
-                    <Link href="/dashboard/cards/apply">
-                        <button className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition">
-                            <Plus className="w-4 h-4" /> Apply for Card
+                    <Link href="/dashboard/cards/apply" className="flex-1 sm:flex-none">
+                        <button className="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-2.5 sm:py-2 rounded-lg flex items-center justify-center gap-2 transition text-sm whitespace-nowrap">
+                            <Plus className="w-4 h-4 shrink-0" /> Apply for card
                         </button>
                     </Link>
                 </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-[#1a2332] p-4 rounded-xl border border-white/5">
-                    <p className="text-gray-400 text-sm">Total Cards</p>
-                    <p className="text-2xl font-bold text-white">{totalCards}</p>
-                </div>
-                <div className="bg-[#1a2332] p-4 rounded-xl border border-white/5">
-                    <p className="text-gray-400 text-sm">Active Cards</p>
-                    <p className="text-2xl font-bold text-green-500">{activeCards}</p>
-                </div>
-                <div className="bg-[#1a2332] p-4 rounded-xl border border-white/5">
-                    <p className="text-gray-400 text-sm">Under Review</p>
-                    <p className="text-2xl font-bold text-yellow-500">{pendingCards}</p>
-                </div>
-                <div className="bg-[#1a2332] p-4 rounded-xl border border-white/5">
-                    <p className="text-gray-400 text-sm">Blocked</p>
-                    <p className="text-2xl font-bold text-red-500">{blockedCards}</p>
-                </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                {stats.map((s) => (
+                    <div key={s.label} className="bg-[#1a2332] p-3 sm:p-4 rounded-xl border border-white/5 min-w-0">
+                        <p className="text-gray-400 text-[10px] sm:text-sm truncate">{s.label}</p>
+                        <p className={`text-lg sm:text-2xl font-bold tabular-nums ${s.tone}`}>{s.value}</p>
+                    </div>
+                ))}
             </div>
 
-            {/* Cards List */}
+            {/* Cards list */}
             {cards.length === 0 ? (
-                <div className="bg-[#1a2332] rounded-xl border border-white/5 p-12 text-center">
-                    <CreditCard className="w-16 h-16 text-gray-500 mx-auto mb-4 opacity-30" />
-                    <h3 className="text-xl font-semibold text-white mb-2">No Cards Yet</h3>
-                    <p className="text-gray-400 mb-4">You haven't applied for any cards yet.</p>
+                <div className="bg-[#1a2332] rounded-xl border border-white/5 p-8 sm:p-12 text-center">
+                    <motion.div
+                        animate={{ y: [0, -6, 0] }}
+                        transition={{ duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+                        className="inline-block"
+                    >
+                        <CreditCard className="w-14 h-14 sm:w-16 sm:h-16 text-gray-500 mx-auto mb-4 opacity-30" />
+                    </motion.div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">No cards yet</h3>
+                    <p className="text-gray-400 text-sm mb-4">Apply for your first card to get started.</p>
                     <Link href="/dashboard/cards/apply">
-                        <button className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition">Apply for Your First Card</button>
+                        <button className="w-full sm:w-auto bg-purple-500 hover:bg-purple-600 text-white px-6 py-2.5 rounded-lg transition">
+                            Apply for a card
+                        </button>
                     </Link>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     {cards.map((card) => {
                         const statusDisplay = getStatusDisplay(card.status);
                         const isProcessing = processing[card.id] || false;
-                        
+                        const isPending =
+                            card.status === 'pending' ||
+                            card.status === 'awaiting_payment' ||
+                            card.status === 'payment_pending';
+
                         return (
-                            <div key={card.id} className={`bg-[#1a2332] rounded-xl border overflow-hidden transition group ${
-                                card.status === 'pending' || card.status === 'awaiting_payment' || card.status === 'payment_pending'
-                                    ? 'border-yellow-500/30 hover:border-yellow-500/50' 
-                                    : card.status === 'active' ? 'border-green-500/30 hover:border-green-500/50' 
-                                    : card.status === 'blocked' ? 'border-red-500/30 hover:border-red-500/50'
-                                    : 'border-white/5 hover:border-purple-500/30'
-                            }`}>
-                                {/* Card Display - NOW PASSING cvv AND card_holder_name */}
-                                <div className="p-4">
+                            <motion.div
+                                key={card.id}
+                                whileHover={{ y: -2 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                                className={`bg-[#1a2332] rounded-xl border overflow-hidden transition group ${
+                                    isPending
+                                        ? 'border-yellow-500/30 hover:border-yellow-500/50'
+                                        : card.status === 'active' ? 'border-green-500/30 hover:border-green-500/50'
+                                        : card.status === 'blocked' ? 'border-red-500/30 hover:border-red-500/50'
+                                        : 'border-white/5 hover:border-purple-500/30'
+                                }`}
+                            >
+                                {/* Status strip — live pulse for active cards */}
+                                <div className={`flex items-center gap-2 px-3 sm:px-4 pt-3 text-xs ${statusDisplay.color.split(' ')[0]}`}>
+                                    {card.status === 'active' ? (
+                                        <motion.span
+                                            animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+                                            transition={{ duration: 2, ease: 'easeInOut', repeat: Infinity }}
+                                            className="w-2 h-2 rounded-full bg-green-500 shrink-0"
+                                        />
+                                    ) : (
+                                        <span className="shrink-0">{statusDisplay.icon}</span>
+                                    )}
+                                    <span className="truncate font-medium">{statusDisplay.label}</span>
+                                    <span className="ml-auto text-gray-500 truncate">{card.card_name}</span>
+                                </div>
+
+                                {/* Card display — unchanged props */}
+                                <div className="p-3 sm:p-4">
                                     <CardDisplay
                                         cardType={card.card_type}
                                         cardNumber={card.card_number}
@@ -315,69 +434,94 @@ export default function DashboardCardsPage() {
                                     />
                                 </div>
 
-                                {/* Card Details */}
-                                <div className="p-4 pt-0 space-y-3">
-                                    <div className="grid grid-cols-2 gap-3 text-sm">
-                                        <div>
-                                            <p className="text-gray-400 text-xs">Daily Limit</p>
-                                            <p className="text-white font-medium">${card.daily_limit.toLocaleString()} USDT</p>
+                                {/* Card details */}
+                                <div className="p-3 sm:p-4 pt-0 space-y-3">
+                                    <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-xs sm:text-sm">
+                                        <div className="min-w-0">
+                                            <p className="text-gray-400 text-[10px] sm:text-xs">Daily limit</p>
+                                            <p className="text-white font-medium tabular-nums truncate">
+                                                ${card.daily_limit.toLocaleString()} USDT
+                                            </p>
                                         </div>
-                                        <div>
-                                            <p className="text-gray-400 text-xs">Monthly Limit</p>
-                                            <p className="text-white font-medium">${card.monthly_limit.toLocaleString()} USDT</p>
+                                        <div className="min-w-0">
+                                            <p className="text-gray-400 text-[10px] sm:text-xs">Monthly limit</p>
+                                            <p className="text-white font-medium tabular-nums truncate">
+                                                ${card.monthly_limit.toLocaleString()} USDT
+                                            </p>
                                         </div>
-                                        <div>
-                                            <p className="text-gray-400 text-xs">Fee</p>
-                                            <p className="text-green-400 font-medium">${card.fee} USDT</p>
+                                        <div className="min-w-0">
+                                            <p className="text-gray-400 text-[10px] sm:text-xs">Fee</p>
+                                            <p className="text-green-400 font-medium tabular-nums truncate">
+                                                ${card.fee} USDT
+                                            </p>
                                         </div>
-                                        <div>
-                                            <p className="text-gray-400 text-xs">Applied</p>
-                                            <p className="text-white font-medium">{new Date(card.application_date).toLocaleDateString()}</p>
+                                        <div className="min-w-0">
+                                            <p className="text-gray-400 text-[10px] sm:text-xs">Applied</p>
+                                            <p className="text-white font-medium tabular-nums truncate">
+                                                {new Date(card.application_date).toLocaleDateString()}
+                                            </p>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                                        <div className="flex items-center gap-2">
-                                            {getCardActionButton(card)}
+                                    {/* Action row — stacks on mobile */}
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-white/5">
+                                        <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                                            <div className="min-w-0 flex-1 sm:flex-none">{getCardActionButton(card)}</div>
                                             {card.status !== 'active' && card.status !== 'blocked' && (
-                                                <button onClick={() => handleDelete(card.id)} disabled={isProcessing} className="text-red-400 hover:text-red-300 transition disabled:opacity-50" title="Delete Card">
-                                                    {isProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                <button
+                                                    onClick={() => handleDelete(card.id)}
+                                                    disabled={isProcessing}
+                                                    className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition disabled:opacity-50 shrink-0"
+                                                    title="Delete card"
+                                                    aria-label="Delete card"
+                                                >
+                                                    {isProcessing
+                                                        ? <RefreshCw className="w-4 h-4 animate-spin" />
+                                                        : <Trash2 className="w-4 h-4" />}
                                                 </button>
                                             )}
                                         </div>
-                                        <Link href={`/dashboard/cards/${card.id}`}>
-                                            <button className="text-purple-400 hover:text-purple-300 transition flex items-center gap-1 text-sm">View Details <ChevronRight className="w-4 h-4" /></button>
+                                        <Link href={`/dashboard/cards/${card.id}`} className="shrink-0">
+                                            <button className="text-purple-400 hover:text-purple-300 transition flex items-center gap-1 text-sm py-1">
+                                                View details <ChevronRight className="w-4 h-4 shrink-0" />
+                                            </button>
                                         </Link>
                                     </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         );
                     })}
                 </div>
             )}
 
-            {/* Activation Info */}
+            {/* Activation info */}
             {cards.some(c => c.status === 'not_activated') && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 sm:p-4">
                     <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5" />
-                        <div>
-                            <h4 className="text-sm font-semibold text-blue-400">Card Activation Required</h4>
-                            <p className="text-sm text-blue-300 mt-1">Some of your cards are not activated yet. To activate your card, visit any ATM, insert your card, and follow the on-screen instructions to set your PIN.</p>
+                        <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                            <h4 className="text-sm font-semibold text-blue-400">Activation required</h4>
+                            <p className="text-xs sm:text-sm text-blue-300 mt-1 break-words">
+                                Some of your cards aren&apos;t activated yet. Visit any ATM, insert the card, and follow the on-screen steps to set your PIN.
+                            </p>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Quick Apply */}
-            <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-xl border border-purple-500/20 p-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div>
-                        <h3 className="text-lg font-semibold text-white">Need a New Card?</h3>
-                        <p className="text-gray-400 text-sm">Apply for a Master Credit, Visa Debit, or Verve Debit card.</p>
+            {/* Quick apply */}
+            <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-xl border border-purple-500/20 p-4 sm:p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div className="min-w-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-white">Need another card?</h3>
+                        <p className="text-gray-400 text-xs sm:text-sm break-words">
+                            Apply for a Master Credit, Visa Debit, or Verve Debit card.
+                        </p>
                     </div>
-                    <Link href="/dashboard/cards/apply">
-                        <button className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition whitespace-nowrap">Apply Now</button>
+                    <Link href="/dashboard/cards/apply" className="w-full md:w-auto">
+                        <button className="w-full md:w-auto bg-purple-500 hover:bg-purple-600 text-white px-6 py-2.5 rounded-lg transition whitespace-nowrap">
+                            Apply now
+                        </button>
                     </Link>
                 </div>
             </div>
