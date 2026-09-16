@@ -22,11 +22,9 @@ function generateReceiptNumber() {
   return '#' + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Adaptive step size for the +/- buttons and slider
-function getStep(bot: any) {
-  const range = (bot.max_deposit || 0) - (bot.min_deposit || 0);
-  if (range >= 1000) return 50;
-  if (range >= 100) return 10;
+// ✅ FIX: step is now always 1 — any integer between min and max is allowed
+// for the slider, the typed input, and the +/− buttons.
+function getStep(_bot: any) {
   return 1;
 }
 
@@ -60,15 +58,11 @@ function SignalPulse({ color = '#10b981' }: { color?: string }) {
 }
 
 // ---------- Hero: Formation Pitch ----------
-// 6 dots that morph between formations — Premier-League-style preview.
 const FORMATIONS = [
-  // Formation 1 — "scanning"
   [ { x: 40, y: 30 }, { x: 100, y: 55 }, { x: 160, y: 30 },
     { x: 40, y: 90 }, { x: 100, y: 65 }, { x: 160, y: 90 } ],
-  // Formation 2 — "buying"
   [ { x: 50, y: 45 }, { x: 100, y: 30 }, { x: 150, y: 45 },
     { x: 60, y: 90 }, { x: 100, y: 75 }, { x: 140, y: 90 } ],
-  // Formation 3 — "selling"
   [ { x: 60, y: 30 }, { x: 100, y: 45 }, { x: 140, y: 30 },
     { x: 50, y: 90 }, { x: 100, y: 75 }, { x: 150, y: 90 } ],
 ];
@@ -86,22 +80,18 @@ function FormationPitch() {
 
   return (
     <div className="relative w-full h-[120px] rounded-xl overflow-hidden bg-gradient-to-br from-[#0a1a12] to-[#0b0e14] border border-emerald-500/20">
-      {/* Pitch lines */}
       <svg viewBox="0 0 200 120" className="absolute inset-0 w-full h-full">
         <rect x="4" y="4" width="192" height="112" fill="none" stroke="#10b981" strokeOpacity="0.15" strokeWidth="1" />
         <line x1="100" y1="4" x2="100" y2="116" stroke="#10b981" strokeOpacity="0.12" strokeWidth="1" />
         <circle cx="100" cy="60" r="18" fill="none" stroke="#10b981" strokeOpacity="0.12" strokeWidth="1" />
         <circle cx="100" cy="60" r="1.5" fill="#10b981" fillOpacity="0.4" />
-        {/* Goals */}
         <rect x="4" y="45" width="6" height="30" fill="none" stroke="#10b981" strokeOpacity="0.2" strokeWidth="1" />
         <rect x="190" y="45" width="6" height="30" fill="none" stroke="#10b981" strokeOpacity="0.2" strokeWidth="1" />
       </svg>
 
-      {/* Dots */}
       <svg viewBox="0 0 200 120" className="absolute inset-0 w-full h-full">
         {dots.map((d, i) => (
           <g key={i}>
-            {/* motion trail */}
             <motion.circle
               r="6"
               fill={DOT_COLORS[i]}
@@ -109,14 +99,12 @@ function FormationPitch() {
               animate={{ cx: d.x, cy: d.y }}
               transition={{ duration: 1.6, ease: [0.4, 0, 0.2, 1] }}
             />
-            {/* main dot */}
             <motion.circle
               r="3"
               fill={DOT_COLORS[i]}
               animate={{ cx: d.x, cy: d.y }}
               transition={{ duration: 1.6, ease: [0.4, 0, 0.2, 1] }}
             />
-            {/* glow */}
             <motion.circle
               r="6"
               fill="none"
@@ -129,7 +117,6 @@ function FormationPitch() {
         ))}
       </svg>
 
-      {/* Status caption */}
       <div className="absolute bottom-1.5 left-2 right-2 flex items-center justify-between text-[9px] font-mono">
         <span className="flex items-center gap-1.5 text-emerald-400">
           <SignalPulse color="#10b981" /> LIVE
@@ -343,10 +330,8 @@ export default function BotStorePage() {
                 isHero ? 'border-emerald-500/30 shadow-emerald-500/10 shadow-lg' : 'border-white/5'
               }`}
             >
-              {/* Ambient: beam on non-hero cards */}
               {!isHero && <TradeBeam />}
 
-              {/* Header strip */}
               <div className={`relative p-4 sm:p-6 flex items-center gap-3 sm:gap-4 border-b border-white/5 ${
                 isHero ? 'bg-gradient-to-r from-[#0a1a12] via-[#0d1a2e] to-[#0b0e14]' : 'bg-gradient-to-r from-[#1a1a4e] to-[#0b0e14]'
               }`}>
@@ -371,14 +356,12 @@ export default function BotStorePage() {
                 )}
               </div>
 
-              {/* Hero: Formation pitch */}
               {isHero && (
                 <div className="p-3 sm:p-4 bg-[#0b0e14] border-b border-white/5">
                   <FormationPitch />
                 </div>
               )}
 
-              {/* Stats strip */}
               <div className="grid grid-cols-3 gap-1 sm:gap-2 p-3 sm:p-6 bg-white/5 border-b border-white/5">
                 <div className="text-center min-w-0">
                   <p className="text-[9px] sm:text-[10px] uppercase text-[#8e96a3] tracking-wider">Min</p>
@@ -394,7 +377,6 @@ export default function BotStorePage() {
                 </div>
               </div>
 
-              {/* Investment area */}
               <div className="p-4 sm:p-6 bg-[#0b0e14]">
                 <div className="flex justify-between items-center mb-3 gap-2">
                   <span className="text-xs sm:text-sm text-[#8e96a3]">Investment Amount</span>
@@ -466,7 +448,6 @@ export default function BotStorePage() {
                   <span className="truncate">{bot.max_deposit}</span>
                 </div>
 
-                {/* Quick Deploy */}
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/5 gap-3">
                   <span className="text-xs sm:text-sm text-[#8e96a3] flex items-center gap-2 min-w-0">
                     <Zap size={14} className="text-yellow-400 shrink-0" />
@@ -652,7 +633,6 @@ export default function BotStorePage() {
           </div>
         ) : (
           <>
-            {/* Mobile cards */}
             <div className="md:hidden space-y-3">
               {purchaseHistory.map((bot) => (
                 <div key={bot.id} className="bg-[#141a24] border border-white/5 rounded-xl p-3 space-y-2">
@@ -690,7 +670,6 @@ export default function BotStorePage() {
               ))}
             </div>
 
-            {/* Desktop table */}
             <div className="hidden md:block bg-[#141a24] border border-white/5 rounded-xl overflow-hidden">
               <table className="w-full text-sm text-left">
                 <thead className="bg-[#0b0e14] border-b border-white/5 text-[#8e96a3]">
