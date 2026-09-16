@@ -20,6 +20,9 @@ import {
 } from 'lucide-react';
 import CardDisplay from './components/CardDisplay';
 
+// ============================================================
+// CARD INTERFACE - INCLUDES cvv AND card_holder_name
+// ============================================================
 interface Card {
     id: string;
     user_id: string;
@@ -79,17 +82,32 @@ export default function DashboardCardsPage() {
                 return;
             }
 
+            console.log('👤 User authenticated:', user.id);
+
             const cardsResponse = await fetch(`/api/cards?userId=${user.id}`);
+            console.log('📡 Cards API response status:', cardsResponse.status);
 
             if (cardsResponse.ok) {
                 const cardsResult = await cardsResponse.json();
+                console.log('📊 User cards response:', cardsResult);
 
                 if (cardsResult.success && Array.isArray(cardsResult.data)) {
-                    setCards(cardsResult.data);
+                    const userCards = cardsResult.data;
+                    console.log(`📊 Found ${userCards.length} cards for user`);
+
+                    if (userCards.length > 0) {
+                        console.log('📊 Sample card:', {
+                            card_holder_name: userCards[0].card_holder_name || 'MISSING',
+                            cvv: userCards[0].cvv || 'MISSING',
+                        });
+                    }
+
+                    setCards(userCards);
                 } else {
                     setCards([]);
                 }
             } else {
+                console.log('No cards found or API error');
                 setCards([]);
             }
         } catch (error: any) {
@@ -102,20 +120,20 @@ export default function DashboardCardsPage() {
 
     const getStatusDisplay = (status: string) => {
         const statusMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-            pending: { label: 'Under Review', color: 'text-yellow-500 bg-yellow-500/10', icon: <Clock className="w-3.5 h-3.5" /> },
-            awaiting_payment: { label: 'Awaiting Payment', color: 'text-yellow-500 bg-yellow-500/10', icon: <Clock className="w-3.5 h-3.5" /> },
-            payment_pending: { label: 'Payment Pending', color: 'text-yellow-500 bg-yellow-500/10', icon: <Clock className="w-3.5 h-3.5" /> },
-            payment_confirmed: { label: 'Payment Confirmed', color: 'text-blue-500 bg-blue-500/10', icon: <CheckCircle className="w-3.5 h-3.5" /> },
-            approved: { label: 'Approved', color: 'text-blue-500 bg-blue-500/10', icon: <CheckCircle className="w-3.5 h-3.5" /> },
-            issued: { label: 'Issued', color: 'text-blue-500 bg-blue-500/10', icon: <CreditCard className="w-3.5 h-3.5" /> },
-            shipped: { label: 'Shipped', color: 'text-blue-500 bg-blue-500/10', icon: <CreditCard className="w-3.5 h-3.5" /> },
-            not_activated: { label: 'Not Activated', color: 'text-yellow-500 bg-yellow-500/10', icon: <AlertCircle className="w-3.5 h-3.5" /> },
-            active: { label: 'Active', color: 'text-green-500 bg-green-500/10', icon: <CheckCircle className="w-3.5 h-3.5" /> },
-            blocked: { label: 'Blocked', color: 'text-red-500 bg-red-500/10', icon: <Lock className="w-3.5 h-3.5" /> },
-            rejected: { label: 'Rejected', color: 'text-red-500 bg-red-500/10', icon: <XCircle className="w-3.5 h-3.5" /> },
-            expired: { label: 'Expired', color: 'text-gray-500 bg-gray-500/10', icon: <AlertCircle className="w-3.5 h-3.5" /> },
+            pending: { label: 'Under Review', color: 'text-yellow-500 bg-yellow-500/10', icon: <Clock className="w-4 h-4" /> },
+            awaiting_payment: { label: 'Awaiting Payment', color: 'text-yellow-500 bg-yellow-500/10', icon: <Clock className="w-4 h-4" /> },
+            payment_pending: { label: 'Payment Pending', color: 'text-yellow-500 bg-yellow-500/10', icon: <Clock className="w-4 h-4" /> },
+            payment_confirmed: { label: 'Payment Confirmed', color: 'text-blue-500 bg-blue-500/10', icon: <CheckCircle className="w-4 h-4" /> },
+            approved: { label: 'Approved', color: 'text-blue-500 bg-blue-500/10', icon: <CheckCircle className="w-4 h-4" /> },
+            issued: { label: 'Issued', color: 'text-blue-500 bg-blue-500/10', icon: <CreditCard className="w-4 h-4" /> },
+            shipped: { label: 'Shipped', color: 'text-blue-500 bg-blue-500/10', icon: <CreditCard className="w-4 h-4" /> },
+            not_activated: { label: 'Not Activated', color: 'text-yellow-500 bg-yellow-500/10', icon: <AlertCircle className="w-4 h-4" /> },
+            active: { label: 'Active', color: 'text-green-500 bg-green-500/10', icon: <CheckCircle className="w-4 h-4" /> },
+            blocked: { label: 'Blocked', color: 'text-red-500 bg-red-500/10', icon: <Lock className="w-4 h-4" /> },
+            rejected: { label: 'Rejected', color: 'text-red-500 bg-red-500/10', icon: <XCircle className="w-4 h-4" /> },
+            expired: { label: 'Expired', color: 'text-gray-500 bg-gray-500/10', icon: <AlertCircle className="w-4 h-4" /> },
         };
-        return statusMap[status] || { label: status, color: 'text-gray-500 bg-gray-500/10', icon: <AlertCircle className="w-3.5 h-3.5" /> };
+        return statusMap[status] || { label: status, color: 'text-gray-500 bg-gray-500/10', icon: <AlertCircle className="w-4 h-4" /> };
     };
 
     const handleBlock = async (cardId: string, action: 'block' | 'unblock') => {
@@ -299,7 +317,7 @@ export default function DashboardCardsPage() {
                         return (
                             <div
                                 key={card.id}
-                                className={`bg-[#1a2332] rounded-xl border overflow-hidden transition ${
+                                className={`bg-[#1a2332] rounded-xl border overflow-hidden transition group ${
                                     card.status === 'pending' || card.status === 'awaiting_payment' || card.status === 'payment_pending'
                                         ? 'border-yellow-500/30 hover:border-yellow-500/50'
                                         : card.status === 'active' ? 'border-green-500/30 hover:border-green-500/50'
@@ -307,8 +325,11 @@ export default function DashboardCardsPage() {
                                         : 'border-white/5 hover:border-purple-500/30'
                                 }`}
                             >
-                                {/* Card Display */}
-                                <div className="p-3 sm:p-4">
+                                {/* ============================================ */}
+                                {/* ⚠️ CARD DISPLAY AREA — DO NOT MODIFY         */}
+                                {/* This is the card image with all details on it */}
+                                {/* ============================================ */}
+                                <div className="p-4">
                                     <CardDisplay
                                         cardType={card.card_type}
                                         cardNumber={card.card_number}
@@ -320,6 +341,9 @@ export default function DashboardCardsPage() {
                                         showFlip={true}
                                     />
                                 </div>
+                                {/* ============================================ */}
+                                {/* ⚠️ END CARD DISPLAY AREA                      */}
+                                {/* ============================================ */}
 
                                 {/* Card Details */}
                                 <div className="p-3 sm:p-4 pt-0 space-y-3">
