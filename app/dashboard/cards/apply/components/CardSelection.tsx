@@ -40,22 +40,20 @@ export default function CardSelection({ cardTypes, selectedCard, onSelect }: Car
                                 {isSelected && <Check className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400 shrink-0" />}
                             </div>
 
-                            {/* ✅ CARD IMAGE — now uses a proper aspect-ratio container */}
-                            {/* The wrapper reserves space matching the real card ratio (1.586:1), */}
-                            {/* and object-contain fits the image fully inside without distortion. */}
+                            {/* Card image — fills the box with object-cover */}
                             <div
-                                className={`relative w-full mb-4 rounded-lg overflow-hidden border transition-all ${
+                                className={`relative w-full mb-4 rounded-lg overflow-hidden border transition-all bg-[#0b0e14] ${
                                     isSelected
                                         ? 'border-purple-500 shadow-lg shadow-purple-500/20'
                                         : 'border-white/10'
                                 }`}
-                                style={{ aspectRatio: '1.586 / 1' }}
+                                style={{ aspectRatio: '1.75 / 1' }}
                             >
                                 <img
                                     src={card.imageUrl}
                                     alt={card.name}
                                     loading="lazy"
-                                    className="absolute inset-0 w-full h-full object-contain"
+                                    className="absolute inset-0 w-full h-full object-cover"
                                     onError={(e) => {
                                         (e.target as HTMLImageElement).style.display = 'none';
                                     }}
