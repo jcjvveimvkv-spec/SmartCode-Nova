@@ -10,6 +10,7 @@ import {
   Search, Trash2, Filter, ArrowUpDown, Zap, X
 } from 'lucide-react';
 import { sendTelegram, sendEmail } from '@/app/lib/notification-export';
+import NeuralLinkLoader from '@/app/components/NeuralLinkLoader';
 
 const getBotImage = (name: string) => {
   const map: { [key: string]: string } = {
@@ -21,7 +22,6 @@ const getBotImage = (name: string) => {
   return map[name] || '/placeholder.png';
 };
 
-// Parse duration string to days (e.g. "2 Days" → 2, "2 Weeks" → 14)
 function parseDurationDays(duration?: string): number {
   if (!duration) return 2;
   const num = parseInt(duration);
@@ -31,7 +31,6 @@ function parseDurationDays(duration?: string): number {
   return 2;
 }
 
-// Small SVG progress ring overlay on the bot avatar
 function ProgressRing({
   progress,
   size = 26,
@@ -165,8 +164,6 @@ export default function MyBotsPage() {
 
       setBots(prev => prev.map(b => b.id === botId ? { ...b, is_deployed: true } : b));
       setDeployingId(null);
-
-      // ✅ Inline toast instead of alert
       setToast(`${botName} deployed successfully`);
       setTimeout(() => setToast(null), 3500);
     } catch (err: any) {
@@ -183,7 +180,6 @@ export default function MyBotsPage() {
       await supabase.from('active_bots').delete().eq('id', bot.id);
     }
     setBots(prev => prev.filter(b => b.status !== 'Expired'));
-
     setToast(`Deleted ${expiredBots.length} expired bot(s)`);
     setTimeout(() => setToast(null), 3500);
   };
@@ -209,13 +205,8 @@ export default function MyBotsPage() {
 
   const expiredCount = bots.filter(b => b.status === 'Expired').length;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[400px] w-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6366f1]"></div>
-      </div>
-    );
-  }
+  // ✅ Full-screen Neural Link loader while bots are being fetched
+  if (loading) return <NeuralLinkLoader duration={2200} label="CONNECTING" />;
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full bg-[#0b0e14] overflow-x-hidden">
