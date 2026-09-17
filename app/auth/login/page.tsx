@@ -4,6 +4,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import AccessScanLoader from '@/app/components/AccessScanLoader';
 
 export default function Login() {
   const supabase = createBrowserClient(
@@ -11,11 +12,12 @@ export default function Login() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
   const router = useRouter();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,13 +33,22 @@ export default function Login() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push('/dashboard'); // Success! Go to dashboard.
+      // ✅ Show the Access Scan FUI, wait for the animation, then navigate
+      setIsVerifying(true);
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 2200);
     }
   };
 
+  // ✅ Full-screen verification loader after successful sign-in
+  if (isVerifying) {
+    return <AccessScanLoader duration={2200} label="AUTHENTICATING" />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a2a] flex items-center justify-center px-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-[#1a1a3e] rounded-2xl border border-blue-500/20 p-8"
