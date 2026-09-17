@@ -76,9 +76,14 @@ export default function AdminCardManagement() {
             return s;
         };
 
-        // Build a user lookup for name/email enrichment
+        // ✅ FIX: users may be typed as a single object OR an array.
+        // Normalize to an array before iterating, and defensively handle null/undefined.
         const userLookup: Record<string, { name: string; email: string }> = {};
-        (users || []).forEach((u: any) => {
+        const userList: any[] = Array.isArray(users)
+            ? users
+            : (users ? [users as any] : []);
+
+        userList.forEach((u: any) => {
             const id = u.user_id || u.id;
             if (id) {
                 userLookup[id] = {
