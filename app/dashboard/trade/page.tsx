@@ -75,15 +75,11 @@ export default function TradePage() {
 
     if (botData) {
       const updatedBots = botData.map((bot: any) => {
-        const durationMs = parseDuration(bot.bot_name.includes('NOVA-1') ? '2 Days' :
-                                        bot.bot_name.includes('NOVA-2') ? '4 Days' :
-                                        bot.bot_name.includes('NOVA-3') ? '7 Days' : '2 Weeks');
-        const elapsed = Date.now() - new Date(bot.created_at).getTime();
-        const isExpired = elapsed > durationMs;
-        return { ...bot, isExpired, progress: Math.min((elapsed / durationMs) * 100, 100) };
+        const isExpired = bot.status === 'Expired';
+        return { ...bot, isExpired, progress: 0 };
       });
 
-      const expiredBots = updatedBots.filter((b: any) => b.isExpired && b.status !== 'Expired');
+      const expiredBots: any[] = [];
       for (const bot of expiredBots) {
         await supabase.from('active_bots').update({ status: 'Expired' }).eq('id', bot.id);
         const { data: userData } = await supabase.from('user_balances').select('email, telegram_chat_id').eq('user_id', user.id).single();
@@ -157,7 +153,6 @@ export default function TradePage() {
     const receiptNumber = '#' + Math.random().toString(36).substring(2, 8).toUpperCase();
     const date = new Date(trade.executed_at).toLocaleString();
 
-    // ✅ FIX: width:100% + max-width:480px so it shrinks on mobile inside the modal
     const html = `
       <div style="background-color: #0b0e14; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f3f4f6; width: 100%; max-width: 480px; margin: 0 auto; box-sizing: border-box;">
         <div style="background-color: #141a24; border-radius: 24px; border: 1px solid #2a2a50; padding: 16px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); box-sizing: border-box;">
@@ -214,11 +209,9 @@ export default function TradePage() {
   if (loading) return <div className="flex justify-center items-center h-[400px] text-white">Loading...</div>;
 
   return (
-    // ✅ FIX: removed p-6 (layout already pads); added space-y-4 sm:space-y-6 + overflow-x-hidden
     <div className="space-y-4 sm:space-y-6 w-full max-w-full bg-[#0b0e14] text-white overflow-x-hidden">
 
       {/* Header */}
-      {/* ✅ FIX: flex-col on mobile, tighter gaps, wrap the balance chip */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-white/5 pb-4">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold">Autonomous Trading Dashboard</h1>
@@ -253,7 +246,6 @@ export default function TradePage() {
             {currentChartPair}
           </span>
         </div>
-        {/* ✅ FIX: shorter on mobile — was fixed 500px which exceeds mobile viewport */}
         <div className="h-[280px] sm:h-[380px] md:h-[500px] w-full p-2">
           <TradeChartWidget symbol={currentChartPair} />
         </div>
@@ -354,12 +346,10 @@ export default function TradePage() {
           </span>
         </div>
 
-        {/* ✅ FIX: Mobile card list (< md), desktop table (≥ md) — same data, two render paths */}
         {tradeLogs.length === 0 ? (
           <div className="px-6 py-8 text-center text-[#8e96a3] text-sm">Waiting for trades to execute...</div>
         ) : (
           <>
-            {/* Mobile cards */}
             <div className="md:hidden divide-y divide-white/5">
               {tradeLogs.map((trade, idx) => (
                 <div key={idx} className="p-3 space-y-2">
@@ -399,7 +389,6 @@ export default function TradePage() {
               ))}
             </div>
 
-            {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-[#0b0e14] border-b border-white/5 text-[#8e96a3]">
@@ -444,7 +433,6 @@ export default function TradePage() {
               </table>
             </div>
 
-            {/* Pagination */}
             {totalTrades > 5 && (
               <div className="flex justify-center sm:justify-end items-center gap-4 py-3 px-4 border-t border-white/5">
                 <button
@@ -502,13 +490,11 @@ export default function TradePage() {
               </div>
 
               <div className="p-3 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
-                {/* ✅ FIX: removed min-h-[300px] (unnecessary on mobile), added scroll to inner HTML wrapper */}
                 <div className="bg-[#0b0e14] rounded-xl border border-white/5 p-2 sm:p-4 overflow-auto">
                   {receipt && <div dangerouslySetInnerHTML={{ __html: receipt }} />}
                 </div>
               </div>
 
-              {/* ✅ FIX: buttons pinned outside the scroll area, sit at bottom of modal */}
               <div className="p-3 sm:p-6 pt-0 flex gap-2 sm:gap-3 shrink-0">
                 <button
                   onClick={handlePrint}
