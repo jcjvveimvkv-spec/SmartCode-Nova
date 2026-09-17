@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import TradeChartWidget from '../TradeChartWidget';
 import { sendTelegram, sendEmail } from '@/app/lib/notification-export';
+import EnergyCoreLoader from '@/app/components/EnergyCoreLoader';
 
 const parseDuration = (duration: string) => {
   const num = parseInt(duration);
@@ -206,7 +207,7 @@ export default function TradePage() {
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-[400px] text-white">Loading...</div>;
+  if (loading) return <EnergyCoreLoader duration={2000} label="LOADING" />;
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full max-w-full bg-[#0b0e14] text-white overflow-x-hidden">
