@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 // ============================================================
 // ENERGY CORE LOADER
-// A sci-fi HUD-style loading gate. The core drains from 100% to 0%
+// A sci-fi HUD-style loading gate. The core charges from 0% to 100%
 // while orbiting particles circle the ring and the color shifts
-// from cyan → mint → amber → red.
+// from red → amber → mint → cyan as energy rises.
 // ============================================================
 
 const SIZE = 260;                    // SVG viewBox size
@@ -23,36 +23,36 @@ export default function EnergyCoreLoader({
   duration?: number;
   label?: string;
 }) {
-  const [energy, setEnergy] = useState(100);   // 100 → 0
-  const [drained, setDrained] = useState(false);
+  const [energy, setEnergy] = useState(0);     // 0 → 100 (was 100 → 0)
+  const [charged, setCharged] = useState(false);
 
-  // Drain animation — easeInOut over `duration` ms
+  // Charge animation — easeInOut over `duration` ms
   useEffect(() => {
     let raf = 0;
     const start = performance.now();
 
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
-      // easeInOutCubic so the drain feels intentional, not linear
+      // easeInOutCubic so the charge feels intentional, not linear
       const eased =
         t < 0.5
           ? 4 * t * t * t
           : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      setEnergy(100 * (1 - eased));
+      setEnergy(100 * eased);                    // was: 100 * (1 - eased)
       if (t < 1) raf = requestAnimationFrame(tick);
-      else setDrained(true);
+      else setCharged(true);
     };
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [duration]);
 
-  // Color temperature shifts as energy drops
+  // Color temperature shifts as energy RISES now
   const getColor = (e: number) => {
-    if (e > 65) return '#22d3ee';   // cyan
-    if (e > 35) return '#10b981';   // mint
-    if (e > 15) return '#f59e0b';   // amber
-    return '#ef4444';               // red
+    if (e > 85) return '#22d3ee';   // cyan — near full
+    if (e > 65) return '#10b981';   // mint
+    if (e > 35) return '#f59e0b';   // amber
+    return '#ef4444';               // red — near empty
   };
 
   const color = getColor(energy);
@@ -60,8 +60,6 @@ export default function EnergyCoreLoader({
   const dash = `${arcLength} ${CIRCUMFERENCE - arcLength}`;
 
   // Position of the endpoint comet — at the tip of the arc
-  // SVG arcs start at 3 o'clock and go counterclockwise by default,
-  // so we rotate the whole ring -90° to start at 12 o'clock
   const angle = (energy / 100) * 360 - 90; // degrees
   const endpointX = CENTER + RING_RADIUS * Math.cos((angle * Math.PI) / 180);
   const endpointY = CENTER + RING_RADIUS * Math.sin((angle * Math.PI) / 180);
@@ -71,7 +69,6 @@ export default function EnergyCoreLoader({
 
       {/* Radial grid background */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Radial fade */}
         <div
           className="absolute inset-0"
           style={{
@@ -79,7 +76,6 @@ export default function EnergyCoreLoader({
               'radial-gradient(circle at center, rgba(34, 211, 238, 0.08) 0%, rgba(10, 10, 42, 1) 65%)',
           }}
         />
-        {/* Grid pattern */}
         <svg className="absolute inset-0 w-full h-full opacity-[0.07]">
           <defs>
             <pattern id="core-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -115,7 +111,7 @@ export default function EnergyCoreLoader({
         {/* Core HUD */}
         <div className="relative" style={{ width: SIZE, height: SIZE }}>
 
-          {/* Orbiting particles — three concentric rings of dots */}
+          {/* Orbiting particles */}
           {[0, 1, 2].map((ringIdx) => (
             <motion.div
               key={`orbit-${ringIdx}`}
@@ -162,7 +158,6 @@ export default function EnergyCoreLoader({
             className="absolute inset-0 w-full h-full -rotate-90"
             style={{ filter: `drop-shadow(0 0 12px ${color}66)` }}
           >
-            {/* Faint background ring */}
             <circle
               cx={CENTER}
               cy={CENTER}
@@ -172,7 +167,7 @@ export default function EnergyCoreLoader({
               strokeWidth="10"
             />
 
-            {/* Tick marks — full circle, illuminated ones follow the arc */}
+            {/* Tick marks */}
             {Array.from({ length: TICK_COUNT }).map((_, i) => {
               const tickAngle = (i / TICK_COUNT) * 360;
               const isLit = (i / TICK_COUNT) * 100 <= energy;
@@ -200,7 +195,7 @@ export default function EnergyCoreLoader({
               );
             })}
 
-            {/* Progress arc — the main charge ring */}
+            {/* Progress arc */}
             <circle
               cx={CENTER}
               cy={CENTER}
@@ -216,7 +211,7 @@ export default function EnergyCoreLoader({
               }}
             />
 
-            {/* Endpoint comet — a small glowing dot at the arc tip */}
+            {/* Endpoint comet */}
             <motion.circle
               cx={endpointX}
               cy={endpointY}
@@ -227,7 +222,7 @@ export default function EnergyCoreLoader({
               style={{ filter: `drop-shadow(0 0 10px ${color})` }}
             />
 
-            {/* Outer halo of the endpoint */}
+            {/* Outer halo */}
             <motion.circle
               cx={endpointX}
               cy={endpointY}
@@ -242,8 +237,9 @@ export default function EnergyCoreLoader({
 
           {/* Center core readout */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            {/* ✅ CHANGED: "ENERGY LEVEL" → "AI TRADING ENERGY LEVEL" */}
             <p className="text-[9px] font-mono tracking-[0.3em] text-cyan-400/50">
-              ENERGY LEVEL
+              AI TRADING ENERGY LEVEL
             </p>
             <p
               className="text-5xl font-bold tabular-nums mt-1"
@@ -258,8 +254,9 @@ export default function EnergyCoreLoader({
             <p className="text-[10px] font-mono tracking-[0.3em] text-cyan-400/60 mt-0.5">
               %
             </p>
+            {/* ✅ CHANGED: status now describes charging, not draining */}
             <p className="text-[9px] font-mono tracking-[0.25em] text-cyan-300/40 mt-2">
-              {drained ? 'CORE DEPLETED' : energy > 90 ? 'FULL ENERGY' : 'CORE CHARGE'}
+              {charged ? 'CORE CHARGED' : energy < 10 ? 'INITIALIZING' : 'CHARGING CORE'}
             </p>
           </div>
         </div>
